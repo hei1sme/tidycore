@@ -30,6 +30,9 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.files_organized_today = 0
         self.files_organized_total = 0
         self.config_manager = ConfigManager()
+        
+        # --- NEW: Dictionary to hold category counts for the chart ---
+        self.category_counts: Dict[str, int] = {}
 
     def run(self):
         """Starts the file watching process."""
@@ -73,11 +76,12 @@ class TidyCoreEngine(FileSystemEventHandler):
         if self.observer.is_alive():
             self.observer.stop()
 
-    # --- NEW METHOD to fix the "Initializing..." bug ---
     def request_status(self):
         """Allows the GUI to request the current status upon startup."""
         self.logger.debug("GUI requested status update.")
         signals.status_changed.emit(self.is_running)
+        # Also emit the initial chart data
+        signals.chart_data_updated.emit(self.category_counts)
 
     def initial_scan(self):
         self.logger.info("Performing initial scan of target folder...")
@@ -170,6 +174,10 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.files_organized_today += 1
             self.files_organized_total += 1
             signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
+            
+            # --- NEW: Update chart data and emit signal ---
+            self.category_counts[category] = self.category_counts.get(category, 0) + 1
+            signals.chart_data_updated.emit(self.category_counts.copy()) # Send a copy
 
             if os.path.isdir(destination_path):
                 signals.folder_decision_made.emit(original_path_str, str(destination_path), category)
@@ -180,7 +188,6 @@ class TidyCoreEngine(FileSystemEventHandler):
             signals.log_message.emit(f"[ERROR] {log_msg}")
 
     def undo_move(self, source_path: str, destination_path: str):
-        """Moves an item back from its organized location to the target folder."""
         self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")
         try:
             if not os.path.exists(source_path):
@@ -201,7 +208,6 @@ class TidyCoreEngine(FileSystemEventHandler):
             signals.log_message.emit(f"[ERROR] {msg}")
 
     def add_to_ignore_list(self, item_name: str):
-        """Adds an item to the config's ignore list and saves it."""
         self.logger.info(f"Adding '{item_name}' to ignore list.")
         if item_name not in self.config.get("ignore_list", []):
             if "ignore_list" not in self.config:

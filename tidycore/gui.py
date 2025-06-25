@@ -1,20 +1,21 @@
 # tidycore/gui.py
 import sys
 import os
-import logging # Added for logging in the GUI class
+import logging
 import qtawesome as qta
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QPushButton, QFrame, QLabel, QStackedWidget, QGroupBox, QTextEdit,
-    QButtonGroup, QSystemTrayIcon, QMenu
+    QPushButton, QLabel, QStackedWidget, QGroupBox, QTextEdit,
+    QButtonGroup, QSystemTrayIcon, QMenu, QGridLayout
 )
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon, QAction
+from PySide6.QtGui import QIcon, QAction, QColor, QFont
 
 from tidycore.signals import signals
+from tidycore.pie_chart_widget import PieChartWidget
 # from tidycore.settings_page import SettingsPage # We will re-add this later
 
-# STYLESHEET remains the same as the last version.
+# STYLESHEET is now more detailed
 STYLESHEET = """
 /* ---- Main Window ---- */
 #MainWindow {
@@ -45,22 +46,26 @@ STYLESHEET = """
 #ContentArea {
     padding: 10px;
 }
+/* ---- QGroupBox Polish ---- */
 QGroupBox {
     background-color: #24283b;
     border-radius: 8px;
-    border: 1px solid #3b3f51;
-    margin-top: 10px;
-    padding-top: 10px;
+    border: none; /* Remove the default border */
+    margin-top: 15px; /* More space for the title */
+    padding-top: 15px;
     font-size: 14px;
     font-weight: bold;
     color: #c0c5ea;
 }
+/* We will draw the title manually for more control */
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
     padding: 0 8px;
-    left: 10px;
+    left: 20px; /* Indent title to make space for icon */
 }
+
+/* ... (QLabel, QTextEdit styles are the same) ... */
 QLabel {
     color: #a9b1d6;
     font-size: 13px;
@@ -90,10 +95,10 @@ class TidyCoreGUI(QMainWindow):
         super().__init__()
         self.engine = engine
         self.app = app
-        self.logger = logging.getLogger("TidyCore") # Added logger instance
+        self.logger = logging.getLogger("TidyCore")
 
         self.setWindowTitle("TidyCore")
-        self.setMinimumSize(900, 650)
+        self.setMinimumSize(950, 700) # Slightly larger for better spacing
         self.setObjectName("MainWindow")
         self.setStyleSheet(STYLESHEET)
 
@@ -172,17 +177,27 @@ class TidyCoreGUI(QMainWindow):
 
     def _create_dashboard_page(self) -> QWidget:
         page = QWidget()
-        layout = QVBoxLayout(page)
+        layout = QGridLayout(page) # Use a Grid for more control
         
-        top_row_layout = QHBoxLayout()
-        top_row_layout.addWidget(self._create_status_box())
-        top_row_layout.addWidget(self._create_statistics_box())
-        
+        # Create all the boxes first
+        chart_box = self._create_chart_box()
+        status_box = self._create_status_box()
+        stats_box = self._create_statistics_box()
         activity_feed_box = self._create_activity_feed_box()
-        
-        layout.addLayout(top_row_layout)
-        layout.addWidget(activity_feed_box, 1)
-        
+
+        # Add them to the grid
+        layout.addWidget(chart_box, 0, 0, 2, 1)    # Row 0, Col 0, span 2 rows, 1 col
+        layout.addWidget(status_box, 0, 1)         # Row 0, Col 1
+        layout.addWidget(stats_box, 1, 1)          # Row 1, Col 1
+        layout.addWidget(activity_feed_box, 2, 0, 1, 2) # Row 2, span 1 row, 2 columns
+
+        # Set stretch factors to control sizing
+        layout.setColumnStretch(0, 2) # Chart column is twice as wide
+        layout.setColumnStretch(1, 1)
+        layout.setRowStretch(0, 1)    # Status row
+        layout.setRowStretch(1, 1)    # Stats row
+        layout.setRowStretch(2, 2)    # Activity feed is twice as tall
+
         return page
 
 
@@ -194,6 +209,24 @@ class TidyCoreGUI(QMainWindow):
         label.setStyleSheet("font-size: 16px;")
         layout.addWidget(label)
         return page
+
+
+    def _create_chart_box(self) -> QGroupBox:
+        """Creates the box for the category breakdown chart."""
+        box = QGroupBox("Category Breakdown")
+        layout = QHBoxLayout(box)
+
+        self.chart_widget = PieChartWidget()
+        
+        # This layout will hold the text legend
+        self.legend_layout = QVBoxLayout()
+        self.legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.legend_layout.setSpacing(10)
+        
+        layout.addWidget(self.chart_widget, 2)
+        layout.addLayout(self.legend_layout, 1)
+        
+        return box
 
 
     def _create_status_box(self) -> QGroupBox:
@@ -228,6 +261,7 @@ class TidyCoreGUI(QMainWindow):
         signals.log_message.connect(self.add_log_message)
         signals.update_stats.connect(self.update_statistics)
         signals.status_changed.connect(self.update_status)
+        signals.chart_data_updated.connect(self.update_chart)
 
 
     def add_log_message(self, message: str):
@@ -246,15 +280,56 @@ class TidyCoreGUI(QMainWindow):
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
+
+    def update_chart(self, data: dict):
+        """Passes data to the chart widget and updates the legend."""
+        # --- FIX: Sort the data here before passing it to the widget ---
+        # This ensures the colors are consistent and there are no duplicates in the view.
+        sorted_data = dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
+
+        # 1. Update the chart widget with the sorted data
+        self.chart_widget.set_data(sorted_data)
+
+        # 2. Clear the old legend
+        while self.legend_layout.count():
+            child = self.legend_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        if not sorted_data: return
+        total = sum(sorted_data.values())
+        if total == 0: return
+
+        # 3. Rebuild the legend from the same sorted data
+        for i, (category, count) in enumerate(sorted_data.items()):
+            color = self.chart_widget.chart_colors[i % len(self.chart_widget.chart_colors)]
+            self._add_legend_item(category, count, total, color)
+
+
+    def _add_legend_item(self, name, value, total, color):
+        """Adds a single formatted entry to the legend layout."""
+        legend_item_layout = QHBoxLayout()
+        
+        color_box = QLabel()
+        color_box.setFixedSize(12, 12)
+        color_box.setStyleSheet(f"background-color: {color.name()}; border-radius: 6px;")
+        
+        percentage = (value / total) * 100
+        label_text = f"{name}: {value} ({percentage:.1f}%)"
+        text_label = QLabel(label_text)
+        
+        legend_item_layout.addWidget(color_box)
+        legend_item_layout.addWidget(text_label)
+        legend_item_layout.addStretch()
+        
+        self.legend_layout.addLayout(legend_item_layout)
+
     def _create_tray_icon(self):
-        """Creates the system tray icon and its context menu."""
         icon_path = os.path.join(os.getcwd(), "icon.png")
         
         if not os.path.exists(icon_path):
             self.logger.warning(f"Icon file 'icon.png' not found in the project directory.")
             self.logger.warning("Using a default system icon as a fallback. Please add 'icon.png' for a custom icon.")
-            # --- FIX: Use a more reliable standard icon ---
-            # SP_DesktopIcon is a very safe fallback that should exist on all platforms.
             icon = self.style().standardIcon(getattr(self.style(), 'SP_DesktopIcon'))
         else:
             icon = QIcon(icon_path)
@@ -277,13 +352,11 @@ class TidyCoreGUI(QMainWindow):
         self.tray_icon.show()
     
     def show_window(self):
-        """Brings the main window to the front."""
         self.show()
         self.activateWindow()
         self.raise_()
 
     def closeEvent(self, event):
-        """Override the window's close event."""
         if self.isVisible():
             event.ignore()
             self.hide()
