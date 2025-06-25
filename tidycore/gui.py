@@ -97,14 +97,18 @@ class TidyCoreGUI(QMainWindow):
         self.app = app
         self.logger = logging.getLogger("TidyCore")
 
-        # --- NEW: State management is now owned by the GUI ---
+        # --- GUI OWNS ALL DISPLAY DATA ---
         self.category_counts = {}
+        self.chart_colors = [
+            QColor("#7aa2f7"), QColor("#ff79c6"), QColor("#9ece6a"),
+            QColor("#e0af68"), QColor("#bb9af7"), QColor("#7dcfff")
+        ]
         
-        # --- NEW: The GUI's own update timer ---
+        # --- GUI CONTROLS ITS OWN REFRESH ---
         self.chart_update_timer = QTimer(self)
         self.chart_update_timer.setSingleShot(True)
-        self.chart_update_timer.setInterval(250) # 250ms delay
-        self.chart_update_timer.timeout.connect(self.update_chart_display)
+        self.chart_update_timer.setInterval(250) # Refresh 250ms after the last event
+        self.chart_update_timer.timeout.connect(self.redraw_dashboard_charts)
 
         self.setWindowTitle("TidyCore")
         self.setMinimumSize(950, 700) # Slightly larger for better spacing
@@ -224,8 +228,17 @@ class TidyCoreGUI(QMainWindow):
         """Creates the box for the category breakdown chart."""
         box = QGroupBox("Category Breakdown")
         layout = QHBoxLayout(box)
-        self.chart_widget = PieChartWidget() # Assuming PieChartWidget is in another file
-        layout.addWidget(self.chart_widget)
+
+        self.chart_widget = PieChartWidget()
+        
+        # This layout will hold the text legend
+        self.legend_layout = QVBoxLayout()
+        self.legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.legend_layout.setSpacing(10)
+        
+        layout.addWidget(self.chart_widget, 2)
+        layout.addLayout(self.legend_layout, 1)
+        
         return box
 
 
@@ -261,8 +274,8 @@ class TidyCoreGUI(QMainWindow):
         signals.log_message.connect(self.add_log_message)
         signals.update_stats.connect(self.update_statistics)
         signals.status_changed.connect(self.update_status)
-        # --- MODIFIED: Connect to the new, simpler signal ---
-        signals.file_organized.connect(self.handle_file_organized)
+        # Connect to the new raw signal
+        signals.file_organized.connect(self.on_file_organized)
 
 
     def add_log_message(self, message: str):
@@ -281,24 +294,74 @@ class TidyCoreGUI(QMainWindow):
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
-    # --- NEW SLOT to handle incoming data ---
-    def handle_file_organized(self, category_name: str):
+    # --- NEW SLOT to receive raw events ---
+    def on_file_organized(self, category_name: str):
         """
-        Receives a signal for one organized file, updates internal data,
-        and restarts the update timer.
+        Slot to handle a single file event. Updates internal data and
+        schedules a single refresh.
         """
         self.category_counts[category_name] = self.category_counts.get(category_name, 0) + 1
-        # Each time a file is organized, we reset the timer.
-        # The update will only happen 250ms after the LAST file is processed.
+        # Each event resets the timer. The redraw will only happen once.
         self.chart_update_timer.start()
 
-    # --- NEW SLOT that the timer calls ---
-    def update_chart_display(self):
+    # --- NEW SLOT called by the timer ---
+    def redraw_dashboard_charts(self):
         """
-        This function is called ONLY ONCE by the timer after a batch of
-        updates. It passes the final, consolidated data to the chart widget.
+        The SINGLE function responsible for redrawing the chart and legend.
+        It uses the GUI's own consolidated data.
         """
-        self.chart_widget.update_data(self.category_counts)
+        # 1. Prepare data for the chart widget
+        if not self.category_counts:
+            self.chart_widget.update_slices([])
+            return
+
+        total = sum(self.category_counts.values())
+        if total == 0:
+            self.chart_widget.update_slices([])
+            return
+            
+        sorted_data = dict(sorted(self.category_counts.items(), key=lambda item: item[1], reverse=True))
+        
+        slices_to_draw = []
+        start_angle = 90.0
+
+        for i, (category, count) in enumerate(sorted_data.items()):
+            span_angle = (count / total) * 360.0
+            color = self.chart_colors[i % len(self.chart_colors)]
+            slices_to_draw.append({'color': color, 'start_angle': start_angle, 'span_angle': -span_angle})
+            start_angle -= span_angle
+        
+        self.chart_widget.update_slices(slices_to_draw)
+        
+        # 2. Clear and rebuild the legend
+        while self.legend_layout.count():
+            child = self.legend_layout.takeAt(0)
+            if child.widget(): child.widget().deleteLater()
+            elif child.layout(): # Important for nested layouts
+                while child.layout().count():
+                    nested_child = child.layout().takeAt(0)
+                    if nested_child.widget(): nested_child.widget().deleteLater()
+        
+        for i, (category, count) in enumerate(sorted_data.items()):
+            color = self.chart_colors[i % len(self.chart_colors)]
+            self._add_legend_item(category, count, total, color)
+            
+    def _add_legend_item(self, name, value, total, color):
+        """Adds a single formatted entry to the legend layout."""
+        legend_item_layout = QHBoxLayout()
+        color_box = QLabel()
+        color_box.setFixedSize(12, 12)
+        color_box.setStyleSheet(f"background-color: {color.name()}; border-radius: 6px;")
+        
+        percentage = (value / total) * 100
+        label_text = f"{name}: {value} ({percentage:.1f}%)"
+        text_label = QLabel(label_text)
+        
+        legend_item_layout.addWidget(color_box)
+        legend_item_layout.addWidget(text_label)
+        legend_item_layout.addStretch()
+        
+        self.legend_layout.addLayout(legend_item_layout)
 
     def _create_tray_icon(self):
         icon_path = os.path.join(os.getcwd(), "icon.png")

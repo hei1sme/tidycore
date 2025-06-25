@@ -3,9 +3,8 @@ import os
 import shutil
 import time
 import logging
-import threading
 from pathlib import Path
-from typing import Dict, Any, Tuple, Optional, List
+from typing import Dict, Any, Tuple, Optional
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -15,7 +14,7 @@ from tidycore.config_manager import ConfigManager
 class TidyCoreEngine(FileSystemEventHandler):
     """
     The core engine for TidyCore. It watches the target directory
-    and organizes files based on the provided configuration.
+    and organizes files based on on the provided configuration.
     """
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -25,12 +24,12 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.ignore_list = self.config.get("ignore_list", [])
         self.cooldown_period = self.config.get("cooldown_period_seconds", 5)
         self.managed_categories = list(self.rules.keys()) + ["Others"]
+        self.config_manager = ConfigManager()
         self.cooldown_files: Dict[str, float] = {}
         self.is_running = True
         self.observer = Observer()
         self.files_organized_today = 0
         self.files_organized_total = 0
-        self.config_manager = ConfigManager()
 
     def run(self):
         """Starts the file watching process."""
@@ -170,7 +169,7 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.files_organized_total += 1
             signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
             
-            # Simply emit the category name. That's it.
+            # THE ONLY CHANGE: Emit the raw event.
             signals.file_organized.emit(category)
 
         except Exception as e:
