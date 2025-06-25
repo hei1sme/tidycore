@@ -9,7 +9,6 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from tidycore.signals import signals
-# --- NEW: Import ConfigManager to save changes to the ignore list ---
 from tidycore.config_manager import ConfigManager
 
 class TidyCoreEngine(FileSystemEventHandler):
@@ -30,7 +29,6 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.observer = Observer()
         self.files_organized_today = 0
         self.files_organized_total = 0
-        # --- NEW: Add a config manager instance for saving ---
         self.config_manager = ConfigManager()
 
     def run(self):
@@ -43,7 +41,6 @@ class TidyCoreEngine(FileSystemEventHandler):
         signals.status_changed.emit(self.is_running)
 
         try:
-            # The loop condition ensures it exits when observer.stop() is called
             while self.observer.is_alive():
                 if self.is_running:
                     self._process_cooldown_files()
@@ -75,6 +72,12 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.logger.info("Engine stop signal received.")
         if self.observer.is_alive():
             self.observer.stop()
+
+    # --- NEW METHOD to fix the "Initializing..." bug ---
+    def request_status(self):
+        """Allows the GUI to request the current status upon startup."""
+        self.logger.debug("GUI requested status update.")
+        signals.status_changed.emit(self.is_running)
 
     def initial_scan(self):
         self.logger.info("Performing initial scan of target folder...")
@@ -141,7 +144,6 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.logger.warning(f"Item {os.path.basename(path)} no longer exists. Skipping.")
             return
 
-        # --- MODIFICATION: Capture the original path for the signal ---
         original_path_str = str(path)
         self.logger.info(f"Processing: {os.path.basename(path)}")
         
@@ -165,12 +167,10 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.logger.info(log_msg)
             signals.log_message.emit(log_msg)
             
-            # Update stats for any organized item (file or folder)
             self.files_organized_today += 1
             self.files_organized_total += 1
             signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
 
-            # --- NEW: Emit the folder decision signal if it was a directory ---
             if os.path.isdir(destination_path):
                 signals.folder_decision_made.emit(original_path_str, str(destination_path), category)
 
@@ -179,7 +179,6 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.logger.error(log_msg)
             signals.log_message.emit(f"[ERROR] {log_msg}")
 
-    # --- NEW METHODS FOR UNDO AND IGNORE ---
     def undo_move(self, source_path: str, destination_path: str):
         """Moves an item back from its organized location to the target folder."""
         self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")
@@ -190,7 +189,6 @@ class TidyCoreEngine(FileSystemEventHandler):
                 signals.log_message.emit(f"[ERROR] {msg}")
                 return
 
-            # Note: The original destination is now the target folder itself.
             final_destination = self._resolve_conflict(Path(self.target_folder) / os.path.basename(source_path))
 
             shutil.move(source_path, final_destination)
@@ -210,7 +208,6 @@ class TidyCoreEngine(FileSystemEventHandler):
                 self.config["ignore_list"] = []
             self.config["ignore_list"].append(item_name)
             self.config_manager.save_config(self.config)
-            # Update the in-memory ignore list for the current session
             self.ignore_list = self.config["ignore_list"]
             signals.log_message.emit(f"'{item_name}' added to ignore list. It will be ignored from now on.")
         else:

@@ -40,51 +40,43 @@ def start_engine_thread(logger) -> TidyCoreEngine:
     current_engine = engine # Store the instance globally
     
     engine_thread = threading.Thread(
-        target=engine.run, # Target the instance's run method
+        target=engine.run,
         daemon=True,
         name="TidyCoreEngineThread",
     )
     engine_thread.start()
-    return engine # Return the engine instance immediately
+    return engine
 
 
 def run_gui_application(logger, engine) -> int:
-    """Initializes and runs the main GUI, passing it the engine instance."""
+    """Initializes and runs the main GUI application."""
     app = QApplication(sys.argv)
-    window = TidyCoreGUI(engine)
-    window.show()
-
     app.setQuitOnLastWindowClosed(False)
-    
-    # --- NEW: Connect the restart signal to a slot ---
-    signals.restart_engine.connect(lambda: restart_engine_flow(logger))
-    
+    # The logger is already available here, so no change is needed for the call.
+    window = TidyCoreGUI(engine, app) 
+    window.show()
     return app.exec()
 
 
-# --- NEW: Function to handle the restart flow ---
 def restart_engine_flow(logger):
     """Stops the current engine and starts a new one."""
     logger.info("Restarting engine due to configuration change...")
     
     global current_engine
     if current_engine:
-        current_engine.stop() # Tell the old engine thread to stop
+        current_engine.stop()
     
-    # A small delay to allow the old thread to shut down
     time.sleep(1) 
     
     try:
-        # Pass the new engine instance to the GUI so it stays current
         new_engine = start_engine_thread(logger)
-        # Find the main window and update its engine reference
         for widget in QApplication.instance().topLevelWidgets():
             if isinstance(widget, TidyCoreGUI):
                 widget.engine = new_engine
+                # Let the GUI know it can request the new status
+                new_engine.request_status()
                 break
     except ConfigError:
-        # Handle the case where the new config is bad
-        # In a real app, you'd show an error dialog here.
         logger.critical("Failed to restart engine with new configuration.")
         signals.log_message.emit("[ERROR] Failed to restart engine. Please check config.json.")
     except Exception as e:
@@ -98,8 +90,7 @@ def main() -> int:
     logger.info("TidyCore application starting...")
 
     try:
-        # Start the engine and get its instance
-        initial_engine = start_engine_thread(logger)
+        engine = start_engine_thread(logger)
     except ConfigError:
         return EXIT_CONFIG_ERROR
     except Exception as exc:
@@ -107,14 +98,13 @@ def main() -> int:
         return EXIT_UNKNOWN_ERROR
 
     try:
-        # Pass the engine instance to the GUI
-        gui_exit_code = run_gui_application(logger, initial_engine)
+        # Connect the restart signal here, before starting the GUI event loop
+        signals.restart_engine.connect(lambda: restart_engine_flow(logger))
+        gui_exit_code = run_gui_application(logger, engine)
     except Exception as exc:
         logger.critical("An unexpected error occurred in the GUI: %s", exc, exc_info=True)
         return EXIT_UNKNOWN_ERROR
 
-    # The application event loop has finished (user clicked Quit)
-    # Gracefully stop the current engine thread before exiting
     if current_engine:
         current_engine.stop()
     logger.info("Application shutting down gracefully.")

@@ -1,26 +1,29 @@
 # tidycore/gui.py
 import sys
+import os
+import logging # Added for logging in the GUI class
 import qtawesome as qta
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QPushButton, QFrame, QLabel, QStackedWidget, QGroupBox, QTextEdit,
-    QButtonGroup # Import QButtonGroup
+    QButtonGroup, QSystemTrayIcon, QMenu
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QIcon, QAction
 
 from tidycore.signals import signals
+# from tidycore.settings_page import SettingsPage # We will re-add this later
 
-# STYLESHEET remains the same for now, as the changes are mostly in layout.
+# STYLESHEET remains the same as the last version.
 STYLESHEET = """
 /* ---- Main Window ---- */
 #MainWindow {
     background-color: #1a1b26; /* Very dark navy background */
 }
-
-/* ---- Sidebar ---- */
+/* ... (rest of the stylesheet is unchanged) ... */
 #Sidebar {
     background-color: #24283b; /* Slightly lighter sidebar */
+    border-right: 1px solid #3b3f51;
 }
 #Sidebar QPushButton {
     background-color: transparent;
@@ -34,24 +37,20 @@ STYLESHEET = """
 #Sidebar QPushButton:hover {
     background-color: #414868;
 }
-/* This is the key for the active button style */
 #Sidebar QPushButton:checked {
     background-color: #7aa2f7; /* Bright blue for active button */
     color: #ffffff;
     font-weight: bold;
 }
-
-/* ---- Content Area ---- */
 #ContentArea {
-    padding: 10px; /* Add padding around the content */
+    padding: 10px;
 }
-
 QGroupBox {
-    background-color: #24283b; /* Same as sidebar for consistency */
+    background-color: #24283b;
     border-radius: 8px;
     border: 1px solid #3b3f51;
     margin-top: 10px;
-    padding-top: 10px; /* Add padding inside the box */
+    padding-top: 10px;
     font-size: 14px;
     font-weight: bold;
     color: #c0c5ea;
@@ -83,13 +82,16 @@ QTextEdit {
 }
 """
 
+
 class TidyCoreGUI(QMainWindow):
     """The main GUI window for TidyCore, featuring a sidebar and content area."""
 
-    def __init__(self, engine):
+    def __init__(self, engine, app: QApplication):
         super().__init__()
         self.engine = engine
-        
+        self.app = app
+        self.logger = logging.getLogger("TidyCore") # Added logger instance
+
         self.setWindowTitle("TidyCore")
         self.setMinimumSize(900, 650)
         self.setObjectName("MainWindow")
@@ -103,16 +105,18 @@ class TidyCoreGUI(QMainWindow):
         content_area = self._create_content_area()
 
         main_layout.addWidget(sidebar)
-        main_layout.addWidget(content_area, 1) # Add stretch factor
+        main_layout.addWidget(content_area, 1)
 
         central_widget = QWidget()
         central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
         
+        self._create_tray_icon()
         self._connect_signals()
+        QTimer.singleShot(100, self.engine.request_status)
+
 
     def _create_sidebar(self) -> QWidget:
-        """Creates the left navigation sidebar."""
         sidebar_widget = QWidget()
         sidebar_widget.setObjectName("Sidebar")
         sidebar_widget.setFixedWidth(200)
@@ -131,27 +135,25 @@ class TidyCoreGUI(QMainWindow):
         self.settings_button = QPushButton("  Settings")
         self.settings_button.setIcon(qta.icon("fa5s.cog"))
         self.settings_button.setCheckable(True)
-
-        # --- FIX: Use QButtonGroup for exclusive selection ---
+        
         self.nav_button_group = QButtonGroup(self)
         self.nav_button_group.setExclusive(True)
         self.nav_button_group.addButton(self.dashboard_button)
         self.nav_button_group.addButton(self.settings_button)
         
-        self.dashboard_button.setChecked(True) # Set default page
+        self.dashboard_button.setChecked(True)
 
         sidebar_layout.addWidget(title_label)
         sidebar_layout.addWidget(self.dashboard_button)
         sidebar_layout.addWidget(self.settings_button)
 
-        # Connect buttons after adding to group
         self.dashboard_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
         self.settings_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
         
         return sidebar_widget
 
+
     def _create_content_area(self) -> QWidget:
-        """Creates the main content area with a stacked widget for pages."""
         content_widget = QWidget()
         content_widget.setObjectName("ContentArea")
         content_layout = QVBoxLayout(content_widget)
@@ -167,8 +169,8 @@ class TidyCoreGUI(QMainWindow):
         
         return content_widget
 
+
     def _create_dashboard_page(self) -> QWidget:
-        """Creates the main dashboard page with its modules."""
         page = QWidget()
         layout = QVBoxLayout(page)
         
@@ -176,16 +178,14 @@ class TidyCoreGUI(QMainWindow):
         top_row_layout.addWidget(self._create_status_box())
         top_row_layout.addWidget(self._create_statistics_box())
         
-        # --- FIX: Add the activity feed to the main vertical layout ---
-        # This makes it take up the full width at the bottom.
         activity_feed_box = self._create_activity_feed_box()
         
         layout.addLayout(top_row_layout)
-        layout.addWidget(activity_feed_box, 1) # Add stretch factor
+        layout.addWidget(activity_feed_box, 1)
         
         return page
 
-    # --- All other methods remain largely the same ---
+
     def _create_settings_page(self) -> QWidget:
         page = QWidget()
         layout = QVBoxLayout(page)
@@ -194,6 +194,7 @@ class TidyCoreGUI(QMainWindow):
         label.setStyleSheet("font-size: 16px;")
         layout.addWidget(label)
         return page
+
 
     def _create_status_box(self) -> QGroupBox:
         box = QGroupBox("Status")
@@ -204,6 +205,7 @@ class TidyCoreGUI(QMainWindow):
         layout.addWidget(self.status_label)
         return box
 
+
     def _create_statistics_box(self) -> QGroupBox:
         box = QGroupBox("Statistics")
         layout = QVBoxLayout(box)
@@ -211,6 +213,7 @@ class TidyCoreGUI(QMainWindow):
         self.stats_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.stats_label)
         return box
+
 
     def _create_activity_feed_box(self) -> QGroupBox:
         box = QGroupBox("Live Activity Feed")
@@ -220,10 +223,12 @@ class TidyCoreGUI(QMainWindow):
         layout.addWidget(self.activity_feed)
         return box
 
+
     def _connect_signals(self):
         signals.log_message.connect(self.add_log_message)
         signals.update_stats.connect(self.update_statistics)
         signals.status_changed.connect(self.update_status)
+
 
     def add_log_message(self, message: str):
         self.activity_feed.insertPlainText(f"{message}\n")
@@ -234,9 +239,57 @@ class TidyCoreGUI(QMainWindow):
     def update_status(self, is_running: bool):
         if is_running:
             self.status_label.setText("Active")
-            self.status_label.setProperty("paused", "false")
+            self.status_label.setProperty("paused", False)
         else:
             self.status_label.setText("Paused")
-            self.status_label.setProperty("paused", "true")
+            self.status_label.setProperty("paused", True)
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
+
+    def _create_tray_icon(self):
+        """Creates the system tray icon and its context menu."""
+        icon_path = os.path.join(os.getcwd(), "icon.png")
+        
+        if not os.path.exists(icon_path):
+            self.logger.warning(f"Icon file 'icon.png' not found in the project directory.")
+            self.logger.warning("Using a default system icon as a fallback. Please add 'icon.png' for a custom icon.")
+            # --- FIX: Use a more reliable standard icon ---
+            # SP_DesktopIcon is a very safe fallback that should exist on all platforms.
+            icon = self.style().standardIcon(getattr(self.style(), 'SP_DesktopIcon'))
+        else:
+            icon = QIcon(icon_path)
+            
+        self.tray_icon = QSystemTrayIcon(icon, self)
+        self.tray_icon.setToolTip("TidyCore")
+        
+        menu = QMenu()
+        show_action = QAction("Show Dashboard", self)
+        quit_action = QAction("Quit TidyCore", self)
+
+        show_action.triggered.connect(self.show_window)
+        quit_action.triggered.connect(self.app.quit)
+
+        menu.addAction(show_action)
+        menu.addSeparator()
+        menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(menu)
+        self.tray_icon.show()
+    
+    def show_window(self):
+        """Brings the main window to the front."""
+        self.show()
+        self.activateWindow()
+        self.raise_()
+
+    def closeEvent(self, event):
+        """Override the window's close event."""
+        if self.isVisible():
+            event.ignore()
+            self.hide()
+            self.tray_icon.showMessage(
+                "TidyCore",
+                "TidyCore is still running in the background.",
+                QSystemTrayIcon.Information,
+                2000
+            )
