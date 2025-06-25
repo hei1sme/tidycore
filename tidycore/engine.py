@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 import logging
+import threading
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, List
 from watchdog.observers import Observer
@@ -31,8 +32,8 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.files_organized_total = 0
         self.config_manager = ConfigManager()
         
-        # --- NEW: Dictionary to hold category counts for the chart ---
         self.category_counts: Dict[str, int] = {}
+        self.ui_update_timer: Optional[threading.Timer] = None
 
     def run(self):
         """Starts the file watching process."""
@@ -73,6 +74,8 @@ class TidyCoreEngine(FileSystemEventHandler):
     def stop(self):
         """Stops the observer thread gracefully."""
         self.logger.info("Engine stop signal received.")
+        if self.ui_update_timer and self.ui_update_timer.is_alive():
+            self.ui_update_timer.cancel()
         if self.observer.is_alive():
             self.observer.stop()
 
@@ -175,10 +178,10 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.files_organized_total += 1
             signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
             
-            # --- NEW: Update chart data and emit signal ---
             self.category_counts[category] = self.category_counts.get(category, 0) + 1
-            signals.chart_data_updated.emit(self.category_counts.copy()) # Send a copy
-
+            
+            self._schedule_ui_update()
+            
             if os.path.isdir(destination_path):
                 signals.folder_decision_made.emit(original_path_str, str(destination_path), category)
 
@@ -186,6 +189,24 @@ class TidyCoreEngine(FileSystemEventHandler):
             log_msg = f"Failed to move {os.path.basename(path)}. Error: {e}"
             self.logger.error(log_msg)
             signals.log_message.emit(f"[ERROR] {log_msg}")
+
+    def _schedule_ui_update(self):
+        """Schedules a UI update, canceling any pending update."""
+        # If a timer is already running, cancel it.
+        if self.ui_update_timer and self.ui_update_timer.is_alive():
+            self.ui_update_timer.cancel()
+        
+        # Start a new timer to send the update after 0.5 seconds.
+        self.ui_update_timer = threading.Timer(0.5, self._send_ui_update)
+        self.ui_update_timer.start()
+
+    def _send_ui_update(self):
+        """Emits the final, consolidated data to the GUI."""
+        self.logger.debug("Sending debounced UI update.")
+        # We send the whole dictionary for simplicity, but the key is that it's the final state.
+        signals.chart_data_updated.emit(self.category_counts.copy())
+        # Let's reset the engine's counter so we don't resend old data. This is optional but cleaner.
+        # For now, sending the whole dict is fine, the GUI will handle it.
 
     def undo_move(self, source_path: str, destination_path: str):
         self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")

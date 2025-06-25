@@ -214,17 +214,12 @@ class TidyCoreGUI(QMainWindow):
     def _create_chart_box(self) -> QGroupBox:
         """Creates the box for the category breakdown chart."""
         box = QGroupBox("Category Breakdown")
-        layout = QHBoxLayout(box)
-
+        # The PieChartWidget manages its own internal layout now
         self.chart_widget = PieChartWidget()
         
-        # This layout will hold the text legend
-        self.legend_layout = QVBoxLayout()
-        self.legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        self.legend_layout.setSpacing(10)
-        
-        layout.addWidget(self.chart_widget, 2)
-        layout.addLayout(self.legend_layout, 1)
+        # We just add our self-contained widget to the box's layout
+        layout = QVBoxLayout(box)
+        layout.addWidget(self.chart_widget)
         
         return box
 
@@ -282,47 +277,9 @@ class TidyCoreGUI(QMainWindow):
 
 
     def update_chart(self, data: dict):
-        """Passes data to the chart widget and updates the legend."""
-        # --- FIX: Sort the data here before passing it to the widget ---
-        # This ensures the colors are consistent and there are no duplicates in the view.
-        sorted_data = dict(sorted(data.items(), key=lambda item: item[1], reverse=True))
-
-        # 1. Update the chart widget with the sorted data
-        self.chart_widget.set_data(sorted_data)
-
-        # 2. Clear the old legend
-        while self.legend_layout.count():
-            child = self.legend_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
-
-        if not sorted_data: return
-        total = sum(sorted_data.values())
-        if total == 0: return
-
-        # 3. Rebuild the legend from the same sorted data
-        for i, (category, count) in enumerate(sorted_data.items()):
-            color = self.chart_widget.chart_colors[i % len(self.chart_widget.chart_colors)]
-            self._add_legend_item(category, count, total, color)
-
-
-    def _add_legend_item(self, name, value, total, color):
-        """Adds a single formatted entry to the legend layout."""
-        legend_item_layout = QHBoxLayout()
-        
-        color_box = QLabel()
-        color_box.setFixedSize(12, 12)
-        color_box.setStyleSheet(f"background-color: {color.name()}; border-radius: 6px;")
-        
-        percentage = (value / total) * 100
-        label_text = f"{name}: {value} ({percentage:.1f}%)"
-        text_label = QLabel(label_text)
-        
-        legend_item_layout.addWidget(color_box)
-        legend_item_layout.addWidget(text_label)
-        legend_item_layout.addStretch()
-        
-        self.legend_layout.addLayout(legend_item_layout)
+        """Passes the final, debounced data to the chart widget."""
+        # The chart widget now handles all its own state and drawing logic.
+        self.chart_widget.update_data(data)
 
     def _create_tray_icon(self):
         icon_path = os.path.join(os.getcwd(), "icon.png")
