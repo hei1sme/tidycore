@@ -1,10 +1,14 @@
 {
-  "target_folder": "C:\Users\Le Nguyen Gia Hung\Downloads",
+  "target_folder": "C:/Users/Le Nguyen Gia Hung/Downloads",
   "cooldown_period_seconds": 10,
   "ignore_list": [
     "!_IN_PROGRESS_!",
     "desktop.ini",
-    ".DS_Store"
+    ".DS_Store",
+    ".crdownload",
+    ".part",
+    ".tmp",
+    ".download"
   ],
   "rules": {
     "Images": [".jpg", ".jpeg", ".png", ".gif", ".dng", ".webp", ".tiff"],
