@@ -1,0 +1,23 @@
+{
+  "target_folder": "C:\Users\Le Nguyen Gia Hung\Downloads",
+  "cooldown_period_seconds": 10,
+  "ignore_list": [
+    "!_IN_PROGRESS_!",
+    "desktop.ini",
+    ".DS_Store"
+  ],
+  "rules": {
+    "Images": [".jpg", ".jpeg", ".png", ".gif", ".dng", ".webp", ".tiff"],
+    "Videos": [".mov", ".mp4", ".avi", ".mkv", ".wmv"],
+    "Music": [".mp3", ".wav", ".aac", ".flac"],
+    "Archives": [".rar", ".zip", ".7z", ".tar", ".gz"],
+    "Executables": [".exe", ".msi", ".dmg", ".app"],
+    "Documents": {
+      "PDFs": [".pdf"],
+      "Word": [".docx", ".doc"],
+      "Excel": [".xlsx", ".xls"],
+      "Powerpoint": [".pptx", ".ppt"],
+      "Text": [".txt", ".md"]
+    }
+  }
+}
