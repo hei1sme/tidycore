@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit, 
     QPushButton, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
-    QGroupBox
+    QGroupBox, QRadioButton
 )
 from PySide6.QtCore import Qt
 
@@ -30,9 +30,12 @@ class SettingsPage(QWidget):
         page_layout = QVBoxLayout(self)
         
         target_folder_box = self._create_target_folder_section()
+        # --- NEW: Create the folder strategy box ---
+        folder_strategy_box = self._create_folder_strategy_section()
         ignore_list_box = self._create_ignore_list_section()
         
         page_layout.addWidget(target_folder_box)
+        page_layout.addWidget(folder_strategy_box) # Add it to the layout
         page_layout.addWidget(ignore_list_box)
         page_layout.addStretch()
 
@@ -53,6 +56,15 @@ class SettingsPage(QWidget):
         # Populate target folder
         self.folder_path_edit.setText(self.current_config.get("target_folder", ""))
         
+        # --- NEW: Set the correct radio button ---
+        strategy = self.current_config.get("folder_handling_strategy", "smart_scan")
+        if strategy == "move_to_others":
+            self.move_to_others_radio.setChecked(True)
+        elif strategy == "ignore":
+            self.ignore_folders_radio.setChecked(True)
+        else: # Default to smart_scan
+            self.smart_scan_radio.setChecked(True)
+            
         # Populate ignore list
         self.ignore_list_widget.clear()
         ignore_items = self.current_config.get("ignore_list", [])
@@ -78,6 +90,27 @@ class SettingsPage(QWidget):
         folder_name = QFileDialog.getExistingDirectory(self, "Select Folder to Organize")
         if folder_name:
             self.folder_path_edit.setText(folder_name)
+
+    # --- NEW METHOD to create the UI section ---
+    def _create_folder_strategy_section(self) -> QGroupBox:
+        box = QGroupBox("Folder Handling Strategy")
+        layout = QVBoxLayout(box)
+        layout.setSpacing(10)
+
+        self.smart_scan_radio = QRadioButton("Smart Categorization (Default)")
+        self.smart_scan_radio.setToolTip("Scan inside unknown folders to determine the best category.")
+        
+        self.move_to_others_radio = QRadioButton("Move to 'Others' Folder")
+        self.move_to_others_radio.setToolTip("Move any unknown folder directly into the 'Others' category without scanning.")
+        
+        self.ignore_folders_radio = QRadioButton("Ignore All Folders")
+        self.ignore_folders_radio.setToolTip("Only organize loose files. Do not move any folders.")
+        
+        layout.addWidget(self.smart_scan_radio)
+        layout.addWidget(self.move_to_others_radio)
+        layout.addWidget(self.ignore_folders_radio)
+        
+        return box
 
     def _create_ignore_list_section(self) -> QGroupBox:
         """Creates the UI for the ignore list setting without loading data."""
@@ -116,6 +149,14 @@ class SettingsPage(QWidget):
     def _save_settings(self):
         """Gathers data from UI, saves to config, and signals that the config has changed."""
         self.current_config["target_folder"] = self.folder_path_edit.text()
+        
+        # --- NEW: Get the selected strategy and save it ---
+        strategy = "smart_scan" # Default
+        if self.move_to_others_radio.isChecked():
+            strategy = "move_to_others"
+        elif self.ignore_folders_radio.isChecked():
+            strategy = "ignore"
+        self.current_config["folder_handling_strategy"] = strategy
         
         new_ignore_list = [self.ignore_list_widget.item(i).text() for i in range(self.ignore_list_widget.count())]
         self.current_config["ignore_list"] = new_ignore_list

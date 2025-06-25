@@ -119,10 +119,20 @@ class TidyCoreEngine(FileSystemEventHandler):
                 self._organize_item(path)
 
     def _should_process(self, path: str) -> bool:
+        base_name = os.path.basename(path)
+        
+        # --- MODIFICATION: Add a check for the "ignore" strategy ---
+        folder_strategy = self.config.get("folder_handling_strategy", "smart_scan")
+        if folder_strategy == "ignore" and os.path.isdir(path):
+            # If strategy is to ignore folders, check if the item is a directory.
+            # We must NOT ignore our own managed category folders, which are handled later.
+            if base_name not in self.managed_categories:
+                 self.logger.debug(f"Ignoring folder '{base_name}' as per 'ignore' strategy.")
+                 return False
+        
         if not os.path.exists(path):
             return False
 
-        base_name = os.path.basename(path)
         ext = os.path.splitext(base_name)[1].lower()
 
         if base_name in self.ignore_list or (ext and ext in self.ignore_list):
@@ -145,7 +155,7 @@ class TidyCoreEngine(FileSystemEventHandler):
             return
 
         self.logger.info(f"Processing: {os.path.basename(path)}")
-        original_path_str = str(path) # Capture original path
+        original_path_str = str(path)
         
         category, sub_category = self._get_category(path)
         
@@ -173,7 +183,6 @@ class TidyCoreEngine(FileSystemEventHandler):
             
             signals.file_organized.emit(category)
 
-            # --- NEW: Emit the folder decision signal ---
             if os.path.isdir(destination_path):
                 signals.folder_decision_made.emit(original_path_str, str(destination_path), category)
 
@@ -191,7 +200,6 @@ class TidyCoreEngine(FileSystemEventHandler):
             return
 
         try:
-            # Resolve conflict at the destination (the original downloads folder)
             destination_path = self._resolve_conflict(Path(original_path))
             shutil.move(source_path, destination_path)
             log_msg = f"[UNDO] Moved '{os.path.basename(source_path)}' back."
@@ -205,20 +213,33 @@ class TidyCoreEngine(FileSystemEventHandler):
     def add_to_ignore_list(self, item_name: str):
         """Adds an item to the config's ignore list and saves it."""
         self.logger.info(f"Adding '{item_name}' to ignore list.")
+        if "ignore_list" not in self.config:
+            self.config["ignore_list"] = []
+            
         if item_name not in self.config["ignore_list"]:
             self.config["ignore_list"].append(item_name)
             self.config_manager.save_config(self.config)
             self.ignore_list = self.config["ignore_list"]
             signals.log_message.emit(f"'{item_name}' added to ignore list.")
-            # --- NEW: Notify the rest of the app that the config has changed ---
+            # Notify the rest of the app that the config has changed
             signals.config_changed.emit()
         else:
             signals.log_message.emit(f"'{item_name}' is already in the ignore list.")
 
     def _get_category(self, path: str) -> Tuple[str, Optional[str]]:
+        """Determines the category and sub-category for a given path."""
+        # --- MODIFIED: The core logic change is here ---
         if os.path.isdir(path):
-            main_category = self._get_folder_dominant_category(path)
-            return main_category, None
+            strategy = self.config.get("folder_handling_strategy", "smart_scan")
+            
+            if strategy == "smart_scan":
+                main_category = self._get_folder_dominant_category(path)
+                return main_category, None
+            elif strategy == "move_to_others":
+                return "Others", None
+            # If strategy is "ignore", it will have been filtered out by _should_process,
+            # so we don't need to explicitly handle it here. Fallback for safety.
+            return "Others", None
 
         if os.path.isfile(path):
             ext = os.path.splitext(path)[1].lower()
