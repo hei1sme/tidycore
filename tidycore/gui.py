@@ -14,7 +14,7 @@ from PySide6.QtGui import QIcon, QAction, QColor, QFont
 from tidycore.signals import signals
 from tidycore.pie_chart_widget import PieChartWidget
 from tidycore.folder_decision_widget import FolderDecisionWidget
-# from tidycore.settings_page import SettingsPage # We will re-add this later
+from tidycore.settings_page import SettingsPage
 
 # STYLESHEET is now more detailed
 STYLESHEET = """
@@ -173,6 +173,7 @@ class TidyCoreGUI(QMainWindow):
 
 
     def _create_content_area(self) -> QWidget:
+        """Creates the main content area with a stacked widget for pages."""
         content_widget = QWidget()
         content_widget.setObjectName("ContentArea")
         content_layout = QVBoxLayout(content_widget)
@@ -181,7 +182,9 @@ class TidyCoreGUI(QMainWindow):
         content_layout.addWidget(self.stacked_widget)
         
         self.dashboard_page = self._create_dashboard_page()
-        self.settings_page = self._create_settings_page()
+        
+        # --- MODIFIED: Use the real SettingsPage ---
+        self.settings_page = SettingsPage()
         
         self.stacked_widget.addWidget(self.dashboard_page)
         self.stacked_widget.addWidget(self.settings_page)
@@ -199,7 +202,6 @@ class TidyCoreGUI(QMainWindow):
         stats_box = self._create_statistics_box()
         activity_feed_box = self._create_activity_feed_box()
         
-        # --- NEW: Add the folder decisions box ---
         folder_decisions_box = self._create_folder_decisions_box()
 
         # Add them to the grid
@@ -218,16 +220,6 @@ class TidyCoreGUI(QMainWindow):
         layout.setRowStretch(1, 1)    # Stats row
         layout.setRowStretch(2, 2)    # Activity feed is twice as tall
 
-        return page
-
-
-    def _create_settings_page(self) -> QWidget:
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        label = QLabel("The full Settings page will be loaded here.")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet("font-size: 16px;")
-        layout.addWidget(label)
         return page
 
 
@@ -298,7 +290,6 @@ class TidyCoreGUI(QMainWindow):
         layout.addWidget(self.activity_feed)
         return box
     
-    # --- NEW METHOD to create the panel ---
     def _create_folder_decisions_box(self) -> QGroupBox:
         box = QGroupBox("Recent Folder Decisions")
         
@@ -350,7 +341,6 @@ class TidyCoreGUI(QMainWindow):
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
-    # --- SLOT to receive raw events ---
     def on_file_organized(self, category_name: str):
         """
         Slot to handle a single file event. Updates internal data and
@@ -360,14 +350,12 @@ class TidyCoreGUI(QMainWindow):
         # Each event resets the timer. The redraw will only happen once.
         self.chart_update_timer.start()
         
-    # --- NEW SLOT for the signal ---
     def add_folder_decision(self, original_path: str, new_path: str, category: str):
         """Creates and adds a new folder decision widget to the panel."""
         decision_widget = FolderDecisionWidget(self.engine, original_path, new_path, category)
         # Insert at the top so newest decisions are most visible
         self.folder_decisions_layout.insertWidget(0, decision_widget)
 
-    # --- SLOT called by the timer ---
     def redraw_dashboard_charts(self):
         """
         The SINGLE function responsible for redrawing the chart and legend.

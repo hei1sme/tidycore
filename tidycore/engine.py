@@ -208,9 +208,10 @@ class TidyCoreEngine(FileSystemEventHandler):
         if item_name not in self.config["ignore_list"]:
             self.config["ignore_list"].append(item_name)
             self.config_manager.save_config(self.config)
-            # Update the engine's in-memory ignore list for the current session
             self.ignore_list = self.config["ignore_list"]
             signals.log_message.emit(f"'{item_name}' added to ignore list.")
+            # --- NEW: Notify the rest of the app that the config has changed ---
+            signals.config_changed.emit()
         else:
             signals.log_message.emit(f"'{item_name}' is already in the ignore list.")
 

@@ -8,5 +8,6 @@ class TidyCoreSignals(QObject):
     restart_engine = Signal()
     folder_decision_made = Signal(str, str, str)
     file_organized = Signal(str)
+    config_changed = Signal()
 
 signals = TidyCoreSignals()

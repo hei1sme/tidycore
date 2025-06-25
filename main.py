@@ -52,8 +52,8 @@ def run_gui_application(logger, engine) -> int:
     """Initializes and runs the main GUI application."""
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
-    # The logger is already available here, so no change is needed for the call.
-    window = TidyCoreGUI(engine, app) 
+    window = TidyCoreGUI(engine, app)
+    signals.config_changed.connect(lambda: restart_engine_flow(logger))
     window.show()
     return app.exec()
 
