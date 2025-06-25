@@ -15,6 +15,8 @@ from tidycore.signals import signals
 from tidycore.pie_chart_widget import PieChartWidget
 from tidycore.folder_decision_widget import FolderDecisionWidget
 from tidycore.settings_page import SettingsPage
+# --- NEW: Import the AboutPage ---
+from tidycore.about_page import AboutPage
 
 # STYLESHEET is now more detailed
 STYLESHEET = """
@@ -154,20 +156,31 @@ class TidyCoreGUI(QMainWindow):
         self.settings_button = QPushButton("  Settings")
         self.settings_button.setIcon(qta.icon("fa5s.cog"))
         self.settings_button.setCheckable(True)
+
+        # --- NEW: About Button ---
+        self.about_button = QPushButton("  About")
+        self.about_button.setIcon(qta.icon("fa5s.info-circle"))
+        self.about_button.setCheckable(True)
         
+        # Add all buttons to the exclusive group
         self.nav_button_group = QButtonGroup(self)
         self.nav_button_group.setExclusive(True)
         self.nav_button_group.addButton(self.dashboard_button)
         self.nav_button_group.addButton(self.settings_button)
+        self.nav_button_group.addButton(self.about_button)
         
-        self.dashboard_button.setChecked(True)
+        self.dashboard_button.setChecked(True) # Default page
 
+        # Add all buttons to the layout
         sidebar_layout.addWidget(title_label)
         sidebar_layout.addWidget(self.dashboard_button)
         sidebar_layout.addWidget(self.settings_button)
+        sidebar_layout.addWidget(self.about_button) # Add to layout
 
+        # Connect all buttons to switch pages
         self.dashboard_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
         self.settings_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
+        self.about_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2)) # Connect new button
         
         return sidebar_widget
 
@@ -182,12 +195,14 @@ class TidyCoreGUI(QMainWindow):
         content_layout.addWidget(self.stacked_widget)
         
         self.dashboard_page = self._create_dashboard_page()
-        
-        # --- MODIFIED: Use the real SettingsPage ---
         self.settings_page = SettingsPage()
+        # --- NEW: Create an instance of the AboutPage ---
+        self.about_page = AboutPage()
         
+        # Add all pages to the stacked widget in order
         self.stacked_widget.addWidget(self.dashboard_page)
         self.stacked_widget.addWidget(self.settings_page)
+        self.stacked_widget.addWidget(self.about_page) # Add new page
         
         return content_widget
 
@@ -255,7 +270,6 @@ class TidyCoreGUI(QMainWindow):
         self.pause_resume_button = QPushButton("Pause Watching")
         self.pause_resume_button.setFixedWidth(150) # Give it a nice fixed size
         
-        # --- THE CRUCIAL CONNECTION ---
         self.pause_resume_button.clicked.connect(self.toggle_pause_resume)
 
         layout.addWidget(self.status_label)
@@ -293,19 +307,16 @@ class TidyCoreGUI(QMainWindow):
     def _create_folder_decisions_box(self) -> QGroupBox:
         box = QGroupBox("Recent Folder Decisions")
         
-        # Use a scroll area for a potentially long list of decisions
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
         
-        # This widget will be the container inside the scroll area
         content_widget = QWidget()
         self.folder_decisions_layout = QVBoxLayout(content_widget)
         self.folder_decisions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         
         scroll_area.setWidget(content_widget)
         
-        # The main layout for the GroupBox
         box_layout = QVBoxLayout(box)
         box_layout.addWidget(scroll_area)
         
@@ -337,31 +348,18 @@ class TidyCoreGUI(QMainWindow):
             self.status_label.setProperty("paused", "true")
             self.pause_resume_button.setText("Resume Watching")
             
-        # This re-applies the stylesheet to update the color based on the property
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
     def on_file_organized(self, category_name: str):
-        """
-        Slot to handle a single file event. Updates internal data and
-        schedules a single refresh.
-        """
         self.category_counts[category_name] = self.category_counts.get(category_name, 0) + 1
-        # Each event resets the timer. The redraw will only happen once.
         self.chart_update_timer.start()
         
     def add_folder_decision(self, original_path: str, new_path: str, category: str):
-        """Creates and adds a new folder decision widget to the panel."""
         decision_widget = FolderDecisionWidget(self.engine, original_path, new_path, category)
-        # Insert at the top so newest decisions are most visible
         self.folder_decisions_layout.insertWidget(0, decision_widget)
 
     def redraw_dashboard_charts(self):
-        """
-        The SINGLE function responsible for redrawing the chart and legend.
-        It uses the GUI's own consolidated data.
-        """
-        # 1. Prepare data for the chart widget
         if not self.category_counts:
             self.chart_widget.update_slices([])
             return
@@ -384,11 +382,10 @@ class TidyCoreGUI(QMainWindow):
         
         self.chart_widget.update_slices(slices_to_draw)
         
-        # 2. Clear and rebuild the legend
         while self.legend_layout.count():
             child = self.legend_layout.takeAt(0)
             if child.widget(): child.widget().deleteLater()
-            elif child.layout(): # Important for nested layouts
+            elif child.layout():
                 while child.layout().count():
                     nested_child = child.layout().takeAt(0)
                     if nested_child.widget(): nested_child.widget().deleteLater()
@@ -398,7 +395,6 @@ class TidyCoreGUI(QMainWindow):
             self._add_legend_item(category, count, total, color)
             
     def _add_legend_item(self, name, value, total, color):
-        """Adds a single formatted entry to the legend layout."""
         legend_item_layout = QHBoxLayout()
         color_box = QLabel()
         color_box.setFixedSize(12, 12)
