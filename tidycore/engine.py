@@ -4,9 +4,11 @@ import shutil
 import time
 import logging
 from pathlib import Path
-from typing import Dict, Any, Tuple, Optional, List
+from typing import Dict, Any, Tuple, Optional
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+
+from tidycore.signals import signals
 
 class TidyCoreEngine(FileSystemEventHandler):
     """
@@ -20,34 +22,79 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.rules = self.config.get("rules", {})
         self.ignore_list = self.config.get("ignore_list", [])
         self.cooldown_period = self.config.get("cooldown_period_seconds", 5)
-        
         self.managed_categories = list(self.rules.keys()) + ["Others"]
-        
         self.cooldown_files: Dict[str, float] = {}
+        self.is_running = True
+        self.observer = Observer()
+        self.files_organized_today = 0
+        self.files_organized_total = 0
 
     def run(self):
         """Starts the file watching process."""
-        self.logger.info("TidyCore Engine starting...")
-        self.logger.info(f"Watching folder: {self.target_folder}")
-        self.logger.info(f"Cooldown period set to {self.cooldown_period} seconds.")
-        
+        self.logger.info("TidyCore Engine thread started.")
         self.initial_scan()
-
-        observer = Observer()
-        observer.schedule(self, str(self.target_folder), recursive=False)
-        observer.start()
+        
+        self.observer.schedule(self, str(self.target_folder), recursive=False)
+        self.observer.start()
+        signals.status_changed.emit(self.is_running)
 
         try:
-            while True:
-                time.sleep(5)
-                self._process_cooldown_files()
-        except KeyboardInterrupt:
-            self.logger.info("Shutdown signal received. Stopping engine.")
-            observer.stop()
-        observer.join()
-        
+            while self.observer.is_alive():
+                if self.is_running:
+                    self._process_cooldown_files()
+                time.sleep(1)
+        except Exception as e:
+            self.logger.critical(f"An error occurred in the engine loop: {e}", exc_info=True)
+        finally:
+            if self.observer.is_alive():
+                self.observer.stop()
+            self.observer.join()
+            self.logger.info("TidyCore Engine thread has stopped.")
+
+    def pause(self):
+        """Pauses the file processing loop."""
+        if self.is_running:
+            self.is_running = False
+            self.logger.info("Engine paused.")
+            signals.status_changed.emit(self.is_running)
+
+    def resume(self):
+        """Resumes the file processing loop."""
+        if not self.is_running:
+            self.is_running = True
+            self.logger.info("Engine resumed.")
+            signals.status_changed.emit(self.is_running)
+            
+    def stop(self):
+        """Stops the observer thread gracefully."""
+        self.logger.info("Engine stop signal received.")
+        if self.observer.is_alive():
+            self.observer.stop()
+
+    def undo_move(self, source_path: str, destination_path: str):
+        """Moves an item back from its organized location to the target folder."""
+        self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")
+        try:
+            # Check if the source (the organized file) still exists
+            if not os.path.exists(source_path):
+                msg = f"Cannot undo: Source file '{source_path}' no longer exists."
+                self.logger.error(msg)
+                signals.log_message.emit(f"[ERROR] {msg}")
+                return
+
+            # Resolve conflicts at the original destination (the Downloads folder)
+            final_destination = self._resolve_conflict(Path(destination_path))
+
+            shutil.move(source_path, final_destination)
+            msg = f"Successfully moved '{os.path.basename(source_path)}' back to Downloads."
+            self.logger.info(msg)
+            signals.log_message.emit(msg)
+        except Exception as e:
+            msg = f"Failed to undo move for '{os.path.basename(source_path)}'. Error: {e}"
+            self.logger.error(msg)
+            signals.log_message.emit(f"[ERROR] {msg}")
+
     def initial_scan(self):
-        """Performs a one-time scan of the directory on startup."""
         self.logger.info("Performing initial scan of target folder...")
         entries_to_process = []
         with os.scandir(self.target_folder) as entries:
@@ -60,30 +107,19 @@ class TidyCoreEngine(FileSystemEventHandler):
             
         self.logger.info("Initial scan complete.")
     
-    # --- NEW: Helper function to handle adding items to the queue ---
     def _queue_item_for_processing(self, path: str):
-        """Checks if an item should be processed and adds it to the cooldown queue."""
         if self._should_process(path):
-            # Don't re-add an item that is already in the queue
             if path not in self.cooldown_files:
                 self.logger.info(f"New item detected: {os.path.basename(path)}. Starting cooldown.")
                 self.cooldown_files[path] = time.time()
 
     def on_created(self, event):
-        """Called when a file or directory is created."""
         self._queue_item_for_processing(event.src_path)
 
-    # --- NEW: The `on_modified` handler to catch finalized downloads ---
     def on_modified(self, event):
-        """
-        Called when a file or directory is modified.
-        This is crucial for catching files that are renamed after being downloaded
-        (e.g., .crdownload -> .docx).
-        """
         self._queue_item_for_processing(event.src_path)
 
     def _process_cooldown_files(self):
-        """Checks and organizes files that have passed their cooldown period."""
         now = time.time()
         ready_to_process = []
         
@@ -98,14 +134,12 @@ class TidyCoreEngine(FileSystemEventHandler):
                 self._organize_item(path)
 
     def _should_process(self, path: str) -> bool:
-        """Determines if a file or folder should be processed."""
         if not os.path.exists(path):
             return False
 
         base_name = os.path.basename(path)
         ext = os.path.splitext(base_name)[1].lower()
 
-        # Check against ignore list (full name or extension)
         if base_name in self.ignore_list or (ext and ext in self.ignore_list):
             self.logger.debug(f"Ignoring '{base_name}' as it is in the ignore_list.")
             return False
@@ -121,11 +155,12 @@ class TidyCoreEngine(FileSystemEventHandler):
         return True
 
     def _organize_item(self, path: str):
-        """Organizes a single file or folder."""
         if not os.path.exists(path):
             self.logger.warning(f"Item {os.path.basename(path)} no longer exists. Skipping.")
             return
 
+        is_dir = os.path.isdir(path)
+        original_path_str = str(path)
         self.logger.info(f"Processing: {os.path.basename(path)}")
         
         category, sub_category = self._get_category(path)
@@ -144,12 +179,23 @@ class TidyCoreEngine(FileSystemEventHandler):
         
         try:
             shutil.move(path, destination_path)
-            self.logger.info(f"Moved '{os.path.basename(path)}' -> '{destination_path.relative_to(self.target_folder)}'")
+            log_msg = f"Moved '{os.path.basename(path)}' -> '{destination_path.relative_to(self.target_folder)}'"
+            self.logger.info(log_msg)
+            signals.log_message.emit(log_msg)
+            
+            if not is_dir: # Only count files for stats
+                self.files_organized_today += 1
+                self.files_organized_total += 1
+                signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
+            else: # If it was a directory, emit the special signal
+                signals.folder_decision_made.emit(str(destination_path), original_path_str)
+
         except Exception as e:
-            self.logger.error(f"Failed to move {os.path.basename(path)}. Error: {e}")
+            log_msg = f"Failed to move {os.path.basename(path)}. Error: {e}"
+            self.logger.error(log_msg)
+            signals.log_message.emit(f"[ERROR] {log_msg}")
 
     def _get_category(self, path: str) -> Tuple[str, Optional[str]]:
-        """Determines the category and sub-category for a given path."""
         if os.path.isdir(path):
             main_category = self._get_folder_dominant_category(path)
             return main_category, None
@@ -170,12 +216,12 @@ class TidyCoreEngine(FileSystemEventHandler):
         return "Others", None
 
     def _get_folder_dominant_category(self, folder_path: str) -> str:
-        """Scans a folder to find its dominant file category."""
         category_counts: Dict[str, int] = {category: 0 for category in self.rules.keys()}
         
         try:
             for root, _, files in os.walk(folder_path):
                 for file in files:
+                    # Pass the full path to _get_category
                     category, _ = self._get_category(os.path.join(root, file))
                     if category in category_counts:
                         category_counts[category] += 1
@@ -190,10 +236,6 @@ class TidyCoreEngine(FileSystemEventHandler):
         return dominant_category
 
     def _resolve_conflict(self, destination_path: Path) -> Path:
-        """
-        If a file already exists at the destination, appends a number.
-        Example: file.txt -> file (1).txt
-        """
         if not destination_path.exists():
             return destination_path
 

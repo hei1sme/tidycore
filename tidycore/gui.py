@@ -2,10 +2,15 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
-    QPushButton, QGroupBox
+    QPushButton, QGroupBox, QTextEdit, QSystemTrayIcon, QMenu, QDialog
 )
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon # We will need this later for icons
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QAction
+
+# --- Import project modules ---
+from tidycore.signals import signals
+from tidycore.settings_window import SettingsWindow
+from tidycore.config_manager import ConfigManager
 
 # --- Modern Stylesheet (QSS) ---
 # This is like CSS for our Qt application. We define the visual style here.
@@ -65,45 +70,82 @@ QPushButton:pressed {
 class TidyCoreGUI(QMainWindow):
     """The main GUI window for the TidyCore application."""
 
-    def __init__(self):
+    def __init__(self, engine):
         super().__init__()
+        self.engine = engine
+        # --- NEW: Instantiate the config manager ---
+        self.config_manager = ConfigManager()
+
         self.setWindowTitle("TidyCore Dashboard")
         self.setMinimumSize(800, 600)
-
-        # Apply the modern stylesheet to the entire window
         self.setStyleSheet(MODERN_STYLESHEET)
         
-        # Main widget and layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         self.grid_layout = QGridLayout(central_widget)
 
-        # Create and add the bento boxes to the grid
         self._create_status_box()
         self._create_chart_box()
         self._create_activity_feed_box()
         self._create_folder_decisions_box()
         self._create_statistics_box()
         self._create_settings_box()
+        
+        self._create_tray_icon()
+        self._connect_signals()
+        
+    def _connect_signals(self):
+        """Connect engine signals to the GUI's update methods."""
+        signals.log_message.connect(self.add_log_message)
+        signals.update_stats.connect(self.update_statistics)
+        signals.status_changed.connect(self.update_status)
+    
+    def add_log_message(self, message: str):
+        """Adds a message to the beginning of the activity feed."""
+        self.activity_feed.insertPlainText(f"{message}\n")
+
+    def update_statistics(self, today_count: int, total_count: int):
+        """Updates the statistics labels."""
+        self.stats_label.setText(f"Files Today: {today_count}\nTotal Organized: {total_count}")
+
+    def update_status(self, is_running: bool):
+        """Updates the status label and pause/resume button text."""
+        if is_running:
+            self.status_label.setText("Actively Watching")
+            self.status_label.setStyleSheet("color: #50fa7b;") # Green
+            self.pause_button.setText("Pause Watching")
+        else:
+            self.status_label.setText("Paused")
+            self.status_label.setStyleSheet("color: #f1fa8c;") # Yellow
+            self.pause_button.setText("Resume Watching")
 
     def _create_status_box(self) -> None:
         """Creates the main status and quick actions box."""
         box = QGroupBox("Status & Quick Actions")
         layout = QGridLayout(box)
 
-        status_label = QLabel("Actively Watching")
-        status_label.setObjectName("StatusLabel") # For specific styling
-        status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label = QLabel("Initializing...")
+        self.status_label.setObjectName("StatusLabel")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        pause_button = QPushButton("Pause Watching")
-        organize_button = QPushButton("Organize Now")
+        self.pause_button = QPushButton("Pause Watching")
+        self.organize_button = QPushButton("Organize Now")
+        
+        self.pause_button.clicked.connect(self.toggle_pause_resume)
 
-        layout.addWidget(status_label, 0, 0, 1, 2)
-        layout.addWidget(pause_button, 1, 0)
-        layout.addWidget(organize_button, 1, 1)
+        layout.addWidget(self.status_label, 0, 0, 1, 2)
+        layout.addWidget(self.pause_button, 1, 0)
+        layout.addWidget(self.organize_button, 1, 1)
 
-        self.grid_layout.addWidget(box, 0, 0, 1, 2) # Span 1 row, 2 columns
-
+        self.grid_layout.addWidget(box, 0, 0, 1, 2)
+        
+    def toggle_pause_resume(self):
+        """Toggles the engine's running state."""
+        if self.engine.is_running:
+            self.engine.pause()
+        else:
+            self.engine.resume()
+            
     def _create_chart_box(self) -> None:
         """Creates a placeholder for the category breakdown chart."""
         box = QGroupBox("Category Breakdown")
@@ -120,11 +162,12 @@ class TidyCoreGUI(QMainWindow):
         box = QGroupBox("Live Activity Feed")
         layout = QGridLayout(box)
 
-        placeholder_label = QLabel("Moved 'invoice.pdf' to 'Documents/PDFs'\nMoved 'vacation.jpg' to 'Images'")
-        placeholder_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(placeholder_label)
+        self.activity_feed = QTextEdit()
+        self.activity_feed.setReadOnly(True)
+        self.activity_feed.setStyleSheet("background-color: #1e1e2e; border: none;")
+        layout.addWidget(self.activity_feed)
 
-        self.grid_layout.addWidget(box, 1, 0, 2, 2) # Span 2 rows, 2 columns
+        self.grid_layout.addWidget(box, 1, 0, 2, 2)
 
     def _create_folder_decisions_box(self) -> None:
         """Creates the box for recent folder decisions."""
@@ -135,15 +178,15 @@ class TidyCoreGUI(QMainWindow):
         placeholder_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         layout.addWidget(placeholder_label)
 
-        self.grid_layout.addWidget(box, 1, 2, 2, 1) # Span 2 rows, 1 column
+        self.grid_layout.addWidget(box, 1, 2, 2, 1)
 
     def _create_statistics_box(self) -> None:
         """Creates the box for key statistics."""
         box = QGroupBox("Statistics")
         layout = QGridLayout(box)
         
-        placeholder_label = QLabel("Files Today: 42\nTotal Organized: 1,821")
-        layout.addWidget(placeholder_label)
+        self.stats_label = QLabel("Files Today: 0\nTotal Organized: 0")
+        layout.addWidget(self.stats_label)
 
         self.grid_layout.addWidget(box, 3, 0, 1, 1)
 
@@ -154,15 +197,68 @@ class TidyCoreGUI(QMainWindow):
 
         settings_button = QPushButton("Settings")
         logs_button = QPushButton("View Full Log")
+
+        # --- NEW: Connect the settings button ---
+        settings_button.clicked.connect(self._open_settings_window)
         
         layout.addWidget(settings_button, 0, 0)
         layout.addWidget(logs_button, 0, 1)
 
-        self.grid_layout.addWidget(box, 3, 1, 1, 2) # Span 1 row, 2 columns
+        self.grid_layout.addWidget(box, 3, 1, 1, 2)
 
-# This allows you to run this file directly to test the GUI, if needed
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    window = TidyCoreGUI()
-    window.show()
-    sys.exit(app.exec())
+    # --- NEW: Method to launch the settings window ---
+    def _open_settings_window(self):
+        """Creates and shows the settings dialog."""
+        # Pause the engine while settings are being changed
+        was_running = self.engine.is_running
+        if was_running:
+            self.engine.pause()
+        
+        dialog = SettingsWindow(self.config_manager, self)
+        # The `exec()` call makes the dialog modal (blocks the main window)
+        result = dialog.exec()
+        
+        # The dialog's `accept()` was called, meaning the user clicked "Save"
+        if result == QDialog.Accepted:
+            signals.log_message.emit("Settings saved. Restarting engine to apply changes...")
+            signals.restart_engine.emit()
+        else:
+            # User clicked "Cancel" or closed the window, so resume if it was running before
+            if was_running:
+                self.engine.resume()
+
+    def _create_tray_icon(self):
+        """Creates the system tray icon and its context menu."""
+        # You'll need an icon file, e.g., 'icon.png' in your root directory
+        # Using a dummy icon for now, will need to be created.
+        if QIcon.hasThemeIcon("document-save"):
+            icon = QIcon.fromTheme("document-save")
+        else:
+            icon = QIcon() # Fallback to a blank icon if none are found.
+            
+        self.tray_icon = QSystemTrayIcon(icon, self)
+        self.tray_icon.setToolTip("TidyCore is running")
+        
+        menu = QMenu()
+        show_action = QAction("Show Dashboard", self)
+        quit_action = QAction("Quit TidyCore", self)
+
+        show_action.triggered.connect(self.show)
+        quit_action.triggered.connect(QApplication.instance().quit)
+
+        menu.addAction(show_action)
+        menu.addAction(quit_action)
+        
+        self.tray_icon.setContextMenu(menu)
+        self.tray_icon.show()
+
+    def closeEvent(self, event):
+        """Override the close event to hide the window instead of quitting."""
+        event.ignore()
+        self.hide()
+        self.tray_icon.showMessage(
+            "TidyCore",
+            "TidyCore is still running in the background. Right-click the tray icon to quit.",
+            QSystemTrayIcon.Information,
+            2000
+        )
