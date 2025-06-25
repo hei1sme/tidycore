@@ -1,15 +1,14 @@
 {
-  "target_folder": "C:/Users/Le Nguyen Gia Hung/Downloads",
+  "target_folder": "{USER_DOWNLOADS}",
   "cooldown_period_seconds": 10,
   "folder_handling_strategy": "smart_scan",
   "ignore_list": [
-    "!_IN_PROGRESS_!",
-    "desktop.ini",
-    ".DS_Store",
     ".crdownload",
     ".part",
     ".tmp",
-    ".download"
+    ".download",
+    "desktop.ini",
+    ".DS_Store"
   ],
   "rules": {
     "Images": {
@@ -23,7 +22,7 @@
         ".gif",
         ".webp",
         ".tiff",
-        "raw"
+        ".heic"
       ]
     },
     "Videos": [
@@ -37,7 +36,8 @@
       ".mp3",
       ".wav",
       ".aac",
-      ".flac"
+      ".flac",
+      ".m4a"
     ],
     "Archives": [
       ".rar",

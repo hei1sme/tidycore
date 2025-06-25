@@ -3,14 +3,17 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit, 
     QPushButton, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
     QGroupBox, QRadioButton, QTreeWidget, QTreeWidgetItem, QMenu,
-    # --- NEW: Add QInputDialog ---
-    QInputDialog 
+    QInputDialog,
+    # --- NEW: Add QCheckBox ---
+    QCheckBox
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 
 from tidycore.config_manager import ConfigManager
 from tidycore.signals import signals
+# --- NEW: Import the startup manager instance ---
+from tidycore.startup_manager import startup_manager
 
 class SettingsPage(QWidget):
     """The main settings page for TidyCore."""
@@ -36,14 +39,15 @@ class SettingsPage(QWidget):
         main_grid = QGridLayout()
         
         # Left column
-        target_folder_box = self._create_target_folder_section()
+        # --- General Settings Box ---
+        general_box = self._create_general_settings_section()
         folder_strategy_box = self._create_folder_strategy_section()
         ignore_list_box = self._create_ignore_list_section()
         
         # Right column (the new Rules Editor)
         rules_editor_box = self._create_rules_editor_section()
 
-        main_grid.addWidget(target_folder_box, 0, 0)
+        main_grid.addWidget(general_box, 0, 0) # Add the new box
         main_grid.addWidget(folder_strategy_box, 1, 0)
         main_grid.addWidget(ignore_list_box, 2, 0)
         main_grid.addWidget(rules_editor_box, 0, 1, 3, 1) # Span all 3 rows
@@ -87,21 +91,49 @@ class SettingsPage(QWidget):
         # --- NEW: Populate the rules tree ---
         self._populate_rules_tree()
 
-    def _create_target_folder_section(self) -> QGroupBox:
-        box = QGroupBox("Target Folder")
-        layout = QHBoxLayout(box)
+        # --- NEW: Set the checkbox state ---
+        self.startup_checkbox.setChecked(startup_manager.is_enabled())
+
+    # --- NEW METHOD for the general settings box ---
+    def _create_general_settings_section(self) -> QGroupBox:
+        box = QGroupBox("General Settings")
+        layout = QVBoxLayout(box)
+
+        # Target folder part
+        target_folder_layout = QHBoxLayout()
         self.folder_path_edit = QLineEdit()
+        self.folder_path_edit.setText(self.current_config.get("target_folder", ""))
         self.folder_path_edit.setReadOnly(True)
         browse_button = QPushButton("Browse...")
         browse_button.clicked.connect(self._browse_for_folder)
-        layout.addWidget(self.folder_path_edit)
-        layout.addWidget(browse_button)
+        target_folder_layout.addWidget(self.folder_path_edit)
+        target_folder_layout.addWidget(browse_button)
+        
+        # Startup checkbox part
+        self.startup_checkbox = QCheckBox("Launch TidyCore when computer starts")
+        self.startup_checkbox.toggled.connect(self._handle_startup_toggle)
+        
+        layout.addLayout(target_folder_layout)
+        layout.addWidget(self.startup_checkbox)
+        
         return box
 
     def _browse_for_folder(self):
         folder_name = QFileDialog.getExistingDirectory(self, "Select Folder to Organize")
         if folder_name:
             self.folder_path_edit.setText(folder_name)
+
+    # --- NEW METHOD to handle the checkbox logic ---
+    def _handle_startup_toggle(self, checked: bool):
+        try:
+            if checked:
+                startup_manager.enable()
+                QMessageBox.information(self, "Startup Enabled", "TidyCore will now start automatically when you log in.")
+            else:
+                startup_manager.disable()
+                QMessageBox.information(self, "Startup Disabled", "TidyCore will no longer start automatically.")
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Could not update startup settings:\n{e}")
 
     def _create_folder_strategy_section(self) -> QGroupBox:
         box = QGroupBox("Folder Handling Strategy")

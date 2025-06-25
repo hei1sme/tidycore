@@ -1,6 +1,9 @@
 # tidycore/logger.py
 import logging
 import sys
+from tidycore.utils import get_absolute_path # Import the new function
+
+LOG_FILE_PATH = get_absolute_path("tidycore.log") # Define the path
 
 def setup_logger() -> logging.Logger:
     """Sets up a standardized logger for the application."""
@@ -10,13 +13,12 @@ def setup_logger() -> logging.Logger:
     if logger.hasHandlers():
         logger.handlers.clear()
 
-    # --- FIX: Explicitly set encoding to 'utf-8' ---
     # Create a handler for console output (stdout)
     stream_handler = logging.StreamHandler(sys.stdout)
     stream_handler.setLevel(logging.INFO)
     
     # Create a handler for writing to a log file
-    file_handler = logging.FileHandler("tidycore.log", mode='a', encoding='utf-8')
+    file_handler = logging.FileHandler(LOG_FILE_PATH, mode='a', encoding='utf-8')
     file_handler.setLevel(logging.INFO)
 
     formatter = logging.Formatter(

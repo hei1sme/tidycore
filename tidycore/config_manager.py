@@ -2,32 +2,44 @@
 import json
 import os
 from typing import Dict, Any
+from tidycore.utils import get_absolute_path
+from pathlib import Path
 
-def load_config(path: str = "config.json") -> Dict[str, Any]:
+CONFIG_PATH = get_absolute_path("config.json")
+
+def load_config() -> Dict[str, Any]:
     """
-    Loads the configuration file.
-
-    Args:
-        path (str): The path to the config.json file.
-
+    Loads and resolves the configuration file.
+    It can automatically find the user's Downloads folder.
+    
     Returns:
         A dictionary containing the configuration.
-        
+
     Raises:
         FileNotFoundError: If the config file cannot be found.
         ValueError: If the target folder in the config does not exist.
     """
+    path = CONFIG_PATH
     if not os.path.exists(path):
         raise FileNotFoundError(f"Configuration file not found at: {path}")
 
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         config = json.load(f)
 
-    # Validate that the target folder exists
+    # --- Path Resolution Logic ---
     target_folder = config.get("target_folder")
-    if not target_folder or not os.path.isdir(target_folder):
+    if target_folder == "{USER_DOWNLOADS}":
+        # Find the user's home directory and append 'Downloads'
+        # This works on Windows, macOS, and Linux.
+        downloads_path = Path.home() / "Downloads"
+        config["target_folder"] = str(downloads_path)
+        
+    # Validate that the final target folder exists
+    # Use .get() to avoid a KeyError if target_folder is missing from config
+    resolved_target = config.get("target_folder")
+    if not resolved_target or not os.path.isdir(resolved_target):
         raise ValueError(
-            f"The 'target_folder' specified in {path} is invalid or does not exist."
+            f"The target folder '{resolved_target}' is invalid or does not exist."
         )
     
     # Normalize file extensions to lowercase for consistent matching
@@ -42,21 +54,23 @@ def load_config(path: str = "config.json") -> Dict[str, Any]:
 
     return config
 
-def save_config(config_data: Dict[str, Any], path: str = "config.json"):
+def save_config(config_data: Dict[str, Any]):
     """
     Saves the provided configuration dictionary to the config file.
 
     Args:
         config_data (Dict[str, Any]): The configuration dictionary to save.
-        path (str, optional): The path to the config file. Defaults to "config.json".
     """
-    with open(path, 'w') as f:
+    path = CONFIG_PATH
+    with open(path, 'w', encoding='utf-8') as f:
         json.dump(config_data, f, indent=2)
 
 # Create a simple class to act as a namespace for our functions
 class ConfigManager:
-    def load_config(self, path: str = "config.json") -> Dict[str, Any]:
-        return load_config(path)
+    def load_config(self) -> Dict[str, Any]:
+        """Loads config from the default path."""
+        return load_config()
     
-    def save_config(self, config_data: Dict[str, Any], path: str = "config.json"):
-        save_config(config_data, path)
+    def save_config(self, config_data: Dict[str, Any]):
+        """Saves config to the default path."""
+        save_config(config_data)

@@ -17,6 +17,8 @@ from tidycore.folder_decision_widget import FolderDecisionWidget
 from tidycore.settings_page import SettingsPage
 # --- NEW: Import the AboutPage ---
 from tidycore.about_page import AboutPage
+# --- NEW: Import the get_absolute_path function ---
+from tidycore.utils import get_absolute_path
 
 # STYLESHEET is now more detailed
 STYLESHEET = """
@@ -411,7 +413,8 @@ class TidyCoreGUI(QMainWindow):
         self.legend_layout.addLayout(legend_item_layout)
 
     def _create_tray_icon(self):
-        icon_path = os.path.join(os.getcwd(), "icon.png")
+        # --- MODIFIED: Use the absolute path for the icon ---
+        icon_path = get_absolute_path("icon.png")
         
         if not os.path.exists(icon_path):
             self.logger.warning(f"Icon file 'icon.png' not found in the project directory.")
