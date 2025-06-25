@@ -12,15 +12,20 @@
     ".download"
   ],
   "rules": {
-    "Images": [
-      ".jpg",
-      ".jpeg",
-      ".png",
-      ".gif",
-      ".dng",
-      ".webp",
-      ".tiff"
-    ],
+    "Images": {
+      "RAW": [
+        ".dng"
+      ],
+      "__extensions__": [
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".gif",
+        ".webp",
+        ".tiff",
+        "raw"
+      ]
+    },
     "Videos": [
       ".mov",
       ".mp4",

@@ -2,8 +2,11 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit, 
     QPushButton, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
-    QGroupBox, QRadioButton, QTreeWidget, QTreeWidgetItem
+    QGroupBox, QRadioButton, QTreeWidget, QTreeWidgetItem, QMenu,
+    # --- NEW: Add QInputDialog ---
+    QInputDialog 
 )
+from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
 
 from tidycore.config_manager import ConfigManager
@@ -115,56 +118,122 @@ class SettingsPage(QWidget):
         layout.addWidget(self.ignore_folders_radio)
         return box
 
-    # --- NEW METHOD to create the Rules Editor ---
     def _create_rules_editor_section(self) -> QGroupBox:
-        box = QGroupBox("File Type Rules")
+        box = QGroupBox("File Type Rules (Right-click to edit)")
         layout = QVBoxLayout(box)
 
         self.rules_tree = QTreeWidget()
         self.rules_tree.setHeaderLabels(["Category / Extension"])
         self.rules_tree.setAlternatingRowColors(True)
+        # Enable the context menu
+        self.rules_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.rules_tree.customContextMenuRequested.connect(self._open_rules_context_menu)
 
+        # --- NEW: A single button to add top-level categories ---
+        add_category_btn = QPushButton("Add New Main Category...")
+        add_category_btn.clicked.connect(self._add_top_level_category)
+        
         button_layout = QHBoxLayout()
-        add_category_btn = QPushButton("Add Category...")
-        add_extension_btn = QPushButton("Add Extension...")
-        remove_btn = QPushButton("Remove Selected")
-        
-        button_layout.addWidget(add_category_btn)
-        button_layout.addWidget(add_extension_btn)
         button_layout.addStretch()
-        button_layout.addWidget(remove_btn)
-        
+        button_layout.addWidget(add_category_btn)
+
         layout.addWidget(self.rules_tree)
         layout.addLayout(button_layout)
         
-        # For now, disable buttons until we implement the logic
-        add_category_btn.setEnabled(False)
-        add_extension_btn.setEnabled(False)
-        remove_btn.setEnabled(False)
-
         return box
 
-    # --- NEW METHOD to build the tree from the config ---
+    def _open_rules_context_menu(self, position):
+        menu = QMenu()
+        selected_item = self.rules_tree.currentItem()
+
+        if not selected_item:
+            # Right-clicked on an empty area
+            add_top_action = QAction("Add New Main Category...", self)
+            add_top_action.triggered.connect(self._add_top_level_category)
+            menu.addAction(add_top_action)
+        else:
+            # Determine if the item is an extension or a category
+            # A simple rule: if it starts with '.', it's an extension.
+            is_extension = selected_item.text(0).startswith('.')
+
+            if is_extension:
+                # If it's an extension, the only option is to remove it.
+                pass # The remove action is added below for all items
+            else:
+                # If it's a category (main or sub), offer to add children to it.
+                add_sub_cat_action = QAction("Add Sub-Category...", self)
+                add_sub_cat_action.triggered.connect(lambda: self._add_item(selected_item, is_subcategory=True))
+                
+                add_ext_action = QAction("Add Extension...", self)
+                add_ext_action.triggered.connect(lambda: self._add_item(selected_item, is_extension=True))
+                
+                menu.addAction(add_sub_cat_action)
+                menu.addAction(add_ext_action)
+
+            # Add a remove action for any selected item
+            menu.addSeparator()
+            remove_action = QAction("Remove Selected", self)
+            remove_action.triggered.connect(lambda: self._remove_item(selected_item))
+            menu.addAction(remove_action)
+
+        # Execute the menu at the cursor's position
+        menu.exec(self.rules_tree.viewport().mapToGlobal(position))
+
+    def _add_top_level_category(self):
+        text, ok = QInputDialog.getText(self, "Add Main Category", "Enter name for the new category:")
+        if ok and text:
+            item = QTreeWidgetItem(self.rules_tree, [text])
+            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+
+    def _add_item(self, parent_item: QTreeWidgetItem, is_subcategory=False, is_extension=False):
+        title = "Add Item"
+        prompt = "Enter name:"
+        if is_subcategory:
+            title, prompt = "Add Sub-Category", "Enter name for the sub-category:"
+        elif is_extension:
+            title, prompt = "Add Extension", "Enter extension (e.g., '.txt'):"
+
+        text, ok = QInputDialog.getText(self, title, prompt)
+        if ok and text:
+            # Ensure extensions start with a dot
+            if is_extension and not text.startswith('.'):
+                text = '.' + text
+            
+            item = QTreeWidgetItem(parent_item, [text])
+            # Only categories and sub-categories are editable by default
+            if not is_extension:
+                item.setFlags(item.flags() | Qt.ItemFlag.ItemIsEditable)
+    
+    def _remove_item(self, item_to_remove: QTreeWidgetItem):
+        parent = item_to_remove.parent()
+        if parent:
+            parent.removeChild(item_to_remove)
+        else: # It's a top-level item
+            index = self.rules_tree.indexOfTopLevelItem(item_to_remove)
+            self.rules_tree.takeTopLevelItem(index)
+
+    # --- NEW, ROBUST POPULATING LOGIC ---
     def _populate_rules_tree(self):
         self.rules_tree.clear()
         rules = self.current_config.get("rules", {})
         
         for category, sub_rules in rules.items():
-            # Create a top-level item for the main category
             category_item = QTreeWidgetItem(self.rules_tree, [category])
             category_item.setFlags(category_item.flags() | Qt.ItemFlag.ItemIsEditable)
 
-            if isinstance(sub_rules, dict): # Nested categories (e.g., Documents)
-                for sub_category, extensions in sub_rules.items():
-                    sub_item = QTreeWidgetItem(category_item, [sub_category])
-                    sub_item.setFlags(sub_item.flags() | Qt.ItemFlag.ItemIsEditable)
-                    for ext in extensions:
-                        ext_item = QTreeWidgetItem(sub_item, [ext])
-                        ext_item.setFlags(ext_item.flags() | Qt.ItemFlag.ItemIsEditable)
-            elif isinstance(sub_rules, list): # Flat categories (e.g., Images)
+            if isinstance(sub_rules, dict): # Nested categories
+                for sub_key, extensions in sub_rules.items():
+                    if sub_key == "__extensions__": # Our special key for flat extensions
+                        for ext in extensions:
+                            ext_item = QTreeWidgetItem(category_item, [ext])
+                    else: # A true sub-category
+                        sub_item = QTreeWidgetItem(category_item, [sub_key])
+                        sub_item.setFlags(sub_item.flags() | Qt.ItemFlag.ItemIsEditable)
+                        for ext in extensions:
+                            ext_item = QTreeWidgetItem(sub_item, [ext])
+            elif isinstance(sub_rules, list): # Purely flat categories
                 for ext in sub_rules:
                     ext_item = QTreeWidgetItem(category_item, [ext])
-                    ext_item.setFlags(ext_item.flags() | Qt.ItemFlag.ItemIsEditable)
         
         self.rules_tree.expandAll()
 
@@ -195,6 +264,7 @@ class SettingsPage(QWidget):
         for item in self.ignore_list_widget.selectedItems():
             self.ignore_list_widget.takeItem(self.ignore_list_widget.row(item))
 
+    # --- NEW, ROBUST SAVING LOGIC ---
     def _save_settings(self):
         """Gathers all data from UI, saves to config, and signals the change."""
         # Save target folder
@@ -207,28 +277,38 @@ class SettingsPage(QWidget):
         elif self.ignore_folders_radio.isChecked():
             strategy = "ignore"
         self.current_config["folder_handling_strategy"] = strategy
-
-        # --- NEW: Logic to rebuild the rules dictionary from the tree ---
+        
         new_rules = {}
         for i in range(self.rules_tree.topLevelItemCount()):
             category_item = self.rules_tree.topLevelItem(i)
             category_name = category_item.text(0)
             
-            # Check if it has sub-categories or direct extensions
-            if category_item.childCount() > 0 and category_item.child(0).childCount() > 0:
-                # Nested structure
-                sub_categories = {}
-                for j in range(category_item.childCount()):
-                    sub_item = category_item.child(j)
-                    sub_name = sub_item.text(0)
-                    extensions = [sub_item.child(k).text(0) for k in range(sub_item.childCount())]
-                    sub_categories[sub_name] = extensions
-                new_rules[category_name] = sub_categories
+            # This is the new, robust saving algorithm
+            has_sub_categories = False
+            flat_extensions = []
+            nested_rules = {}
+            
+            for j in range(category_item.childCount()):
+                child_item = category_item.child(j)
+                # If a child has its own children, it's a sub-category
+                if child_item.childCount() > 0:
+                    has_sub_categories = True
+                    sub_name = child_item.text(0)
+                    extensions = [child_item.child(k).text(0) for k in range(child_item.childCount())]
+                    nested_rules[sub_name] = extensions
+                else: # It's a flat extension
+                    flat_extensions.append(child_item.text(0))
+            
+            if has_sub_categories:
+                # If there are any sub-categories, we must use the nested format.
+                # Store any flat extensions under the special key.
+                if flat_extensions:
+                    nested_rules["__extensions__"] = flat_extensions
+                new_rules[category_name] = nested_rules
             else:
-                # Flat structure
-                extensions = [category_item.child(k).text(0) for k in range(category_item.childCount())]
-                new_rules[category_name] = extensions
-                
+                # If there are NO sub-categories, use the simple flat list format.
+                new_rules[category_name] = flat_extensions
+
         self.current_config["rules"] = new_rules
 
         # Save ignore list
@@ -237,7 +317,7 @@ class SettingsPage(QWidget):
         
         try:
             self.config_manager.save_config(self.current_config)
-            QMessageBox.information(self, "Success", "Settings saved. The engine will restart automatically if needed.")
+            QMessageBox.information(self, "Success", "Settings saved.")
             signals.config_changed.emit()
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to save settings: {e}")

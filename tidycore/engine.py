@@ -246,11 +246,18 @@ class TidyCoreEngine(FileSystemEventHandler):
             if not ext: return "Others", None
             
             for category, sub_rules in self.rules.items():
-                if isinstance(sub_rules, list):
+                if isinstance(sub_rules, list): # Simple flat category
                     if ext in sub_rules:
                         return category, None
-                elif isinstance(sub_rules, dict):
+                elif isinstance(sub_rules, dict): # Nested or mixed category
+                    # Check for flat extensions first using our special key
+                    if ext in sub_rules.get("__extensions__", []):
+                        return category, None
+                    
+                    # Then check the actual sub-categories
                     for sub_category, extensions in sub_rules.items():
+                        if sub_category == "__extensions__":
+                            continue # Already checked
                         if ext in extensions:
                             return category, sub_category
         
