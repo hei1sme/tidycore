@@ -30,10 +30,10 @@ class TidyCoreSignals(QObject):
     #   str: The category it was moved into (e.g., "Images").
     folder_decision_made = Signal(str, str, str)
 
-    # --- NEW SIGNAL ---
-    # Emitted when category statistics change, for the chart.
-    # Argument: dict (e.g., {"Images": 10, "Documents": 5})
-    chart_data_updated = Signal(dict)
+    # NEW, SIMPLER SIGNAL:
+    # Emits the category name each time a file is successfully organized.
+    file_organized = Signal(str)
+
 
 # Create a single, global instance of the signals object that can be imported
 # by both the engine and the GUI to ensure they are connected to the same signals.

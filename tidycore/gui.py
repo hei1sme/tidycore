@@ -97,6 +97,15 @@ class TidyCoreGUI(QMainWindow):
         self.app = app
         self.logger = logging.getLogger("TidyCore")
 
+        # --- NEW: State management is now owned by the GUI ---
+        self.category_counts = {}
+        
+        # --- NEW: The GUI's own update timer ---
+        self.chart_update_timer = QTimer(self)
+        self.chart_update_timer.setSingleShot(True)
+        self.chart_update_timer.setInterval(250) # 250ms delay
+        self.chart_update_timer.timeout.connect(self.update_chart_display)
+
         self.setWindowTitle("TidyCore")
         self.setMinimumSize(950, 700) # Slightly larger for better spacing
         self.setObjectName("MainWindow")
@@ -214,13 +223,9 @@ class TidyCoreGUI(QMainWindow):
     def _create_chart_box(self) -> QGroupBox:
         """Creates the box for the category breakdown chart."""
         box = QGroupBox("Category Breakdown")
-        # The PieChartWidget manages its own internal layout now
-        self.chart_widget = PieChartWidget()
-        
-        # We just add our self-contained widget to the box's layout
-        layout = QVBoxLayout(box)
+        layout = QHBoxLayout(box)
+        self.chart_widget = PieChartWidget() # Assuming PieChartWidget is in another file
         layout.addWidget(self.chart_widget)
-        
         return box
 
 
@@ -256,7 +261,8 @@ class TidyCoreGUI(QMainWindow):
         signals.log_message.connect(self.add_log_message)
         signals.update_stats.connect(self.update_statistics)
         signals.status_changed.connect(self.update_status)
-        signals.chart_data_updated.connect(self.update_chart)
+        # --- MODIFIED: Connect to the new, simpler signal ---
+        signals.file_organized.connect(self.handle_file_organized)
 
 
     def add_log_message(self, message: str):
@@ -275,11 +281,24 @@ class TidyCoreGUI(QMainWindow):
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
+    # --- NEW SLOT to handle incoming data ---
+    def handle_file_organized(self, category_name: str):
+        """
+        Receives a signal for one organized file, updates internal data,
+        and restarts the update timer.
+        """
+        self.category_counts[category_name] = self.category_counts.get(category_name, 0) + 1
+        # Each time a file is organized, we reset the timer.
+        # The update will only happen 250ms after the LAST file is processed.
+        self.chart_update_timer.start()
 
-    def update_chart(self, data: dict):
-        """Passes the final, debounced data to the chart widget."""
-        # The chart widget now handles all its own state and drawing logic.
-        self.chart_widget.update_data(data)
+    # --- NEW SLOT that the timer calls ---
+    def update_chart_display(self):
+        """
+        This function is called ONLY ONCE by the timer after a batch of
+        updates. It passes the final, consolidated data to the chart widget.
+        """
+        self.chart_widget.update_data(self.category_counts)
 
     def _create_tray_icon(self):
         icon_path = os.path.join(os.getcwd(), "icon.png")
