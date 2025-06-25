@@ -6,13 +6,14 @@ import qtawesome as qta
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QPushButton, QLabel, QStackedWidget, QGroupBox, QTextEdit,
-    QButtonGroup, QSystemTrayIcon, QMenu, QGridLayout
+    QButtonGroup, QSystemTrayIcon, QMenu, QGridLayout, QScrollArea
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QAction, QColor, QFont
 
 from tidycore.signals import signals
 from tidycore.pie_chart_widget import PieChartWidget
+from tidycore.folder_decision_widget import FolderDecisionWidget
 # from tidycore.settings_page import SettingsPage # We will re-add this later
 
 # STYLESHEET is now more detailed
@@ -197,12 +198,18 @@ class TidyCoreGUI(QMainWindow):
         status_box = self._create_status_box()
         stats_box = self._create_statistics_box()
         activity_feed_box = self._create_activity_feed_box()
+        
+        # --- NEW: Add the folder decisions box ---
+        folder_decisions_box = self._create_folder_decisions_box()
 
         # Add them to the grid
         layout.addWidget(chart_box, 0, 0, 2, 1)    # Row 0, Col 0, span 2 rows, 1 col
         layout.addWidget(status_box, 0, 1)         # Row 0, Col 1
         layout.addWidget(stats_box, 1, 1)          # Row 1, Col 1
-        layout.addWidget(activity_feed_box, 2, 0, 1, 2) # Row 2, span 1 row, 2 columns
+        
+        # Add the two bottom boxes
+        layout.addWidget(activity_feed_box, 2, 0)       # Row 2, Col 0
+        layout.addWidget(folder_decisions_box, 2, 1)    # Row 2, Col 1
 
         # Set stretch factors to control sizing
         layout.setColumnStretch(0, 2) # Chart column is twice as wide
@@ -243,14 +250,36 @@ class TidyCoreGUI(QMainWindow):
 
 
     def _create_status_box(self) -> QGroupBox:
+        """Creates the main status and quick actions box."""
         box = QGroupBox("Status")
         layout = QVBoxLayout(box)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         self.status_label = QLabel("Initializing...")
         self.status_label.setObjectName("StatusLabel")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.status_label)
-        return box
 
+        # We will use a single button and change its text
+        self.pause_resume_button = QPushButton("Pause Watching")
+        self.pause_resume_button.setFixedWidth(150) # Give it a nice fixed size
+        
+        # --- THE CRUCIAL CONNECTION ---
+        self.pause_resume_button.clicked.connect(self.toggle_pause_resume)
+
+        layout.addWidget(self.status_label)
+        layout.addWidget(self.pause_resume_button)
+        
+        return box
+    
+    def toggle_pause_resume(self):
+        """
+        Checks the engine's current state and calls the appropriate
+        pause() or resume() method.
+        """
+        if self.engine.is_running:
+            self.engine.pause()
+        else:
+            self.engine.resume()
 
     def _create_statistics_box(self) -> QGroupBox:
         box = QGroupBox("Statistics")
@@ -268,14 +297,36 @@ class TidyCoreGUI(QMainWindow):
         self.activity_feed.setReadOnly(True)
         layout.addWidget(self.activity_feed)
         return box
+    
+    # --- NEW METHOD to create the panel ---
+    def _create_folder_decisions_box(self) -> QGroupBox:
+        box = QGroupBox("Recent Folder Decisions")
+        
+        # Use a scroll area for a potentially long list of decisions
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
+        
+        # This widget will be the container inside the scroll area
+        content_widget = QWidget()
+        self.folder_decisions_layout = QVBoxLayout(content_widget)
+        self.folder_decisions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
+        scroll_area.setWidget(content_widget)
+        
+        # The main layout for the GroupBox
+        box_layout = QVBoxLayout(box)
+        box_layout.addWidget(scroll_area)
+        
+        return box
 
 
     def _connect_signals(self):
         signals.log_message.connect(self.add_log_message)
         signals.update_stats.connect(self.update_statistics)
         signals.status_changed.connect(self.update_status)
-        # Connect to the new raw signal
         signals.file_organized.connect(self.on_file_organized)
+        signals.folder_decision_made.connect(self.add_folder_decision)
 
 
     def add_log_message(self, message: str):
@@ -285,16 +336,21 @@ class TidyCoreGUI(QMainWindow):
         self.stats_label.setText(f"Files Today: {today_count}\nTotal Organized: {total_count}")
 
     def update_status(self, is_running: bool):
+        """Updates the status label AND the pause/resume button text."""
         if is_running:
             self.status_label.setText("Active")
-            self.status_label.setProperty("paused", False)
+            self.status_label.setProperty("paused", "false")
+            self.pause_resume_button.setText("Pause Watching")
         else:
             self.status_label.setText("Paused")
-            self.status_label.setProperty("paused", True)
+            self.status_label.setProperty("paused", "true")
+            self.pause_resume_button.setText("Resume Watching")
+            
+        # This re-applies the stylesheet to update the color based on the property
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
-    # --- NEW SLOT to receive raw events ---
+    # --- SLOT to receive raw events ---
     def on_file_organized(self, category_name: str):
         """
         Slot to handle a single file event. Updates internal data and
@@ -303,8 +359,15 @@ class TidyCoreGUI(QMainWindow):
         self.category_counts[category_name] = self.category_counts.get(category_name, 0) + 1
         # Each event resets the timer. The redraw will only happen once.
         self.chart_update_timer.start()
+        
+    # --- NEW SLOT for the signal ---
+    def add_folder_decision(self, original_path: str, new_path: str, category: str):
+        """Creates and adds a new folder decision widget to the panel."""
+        decision_widget = FolderDecisionWidget(self.engine, original_path, new_path, category)
+        # Insert at the top so newest decisions are most visible
+        self.folder_decisions_layout.insertWidget(0, decision_widget)
 
-    # --- NEW SLOT called by the timer ---
+    # --- SLOT called by the timer ---
     def redraw_dashboard_charts(self):
         """
         The SINGLE function responsible for redrawing the chart and legend.

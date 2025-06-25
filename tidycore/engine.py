@@ -17,6 +17,7 @@ class TidyCoreEngine(FileSystemEventHandler):
     and organizes files based on on the provided configuration.
     """
     def __init__(self, config: Dict[str, Any]):
+        super().__init__()
         self.config = config
         self.logger = logging.getLogger("TidyCore")
         self.target_folder = Path(self.config["target_folder"])
@@ -144,6 +145,7 @@ class TidyCoreEngine(FileSystemEventHandler):
             return
 
         self.logger.info(f"Processing: {os.path.basename(path)}")
+        original_path_str = str(path) # Capture original path
         
         category, sub_category = self._get_category(path)
         
@@ -169,43 +171,46 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.files_organized_total += 1
             signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
             
-            # THE ONLY CHANGE: Emit the raw event.
             signals.file_organized.emit(category)
+
+            # --- NEW: Emit the folder decision signal ---
+            if os.path.isdir(destination_path):
+                signals.folder_decision_made.emit(original_path_str, str(destination_path), category)
 
         except Exception as e:
             log_msg = f"Failed to move {os.path.basename(path)}. Error: {e}"
             self.logger.error(log_msg)
             signals.log_message.emit(f"[ERROR] {log_msg}")
 
-    def undo_move(self, source_path: str, destination_path: str):
-        self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")
+    def undo_move(self, source_path: str, original_path: str):
+        """Moves an item back from its organized location."""
+        if not os.path.exists(source_path):
+            log_msg = f"[ERROR] Cannot undo: Source '{os.path.basename(source_path)}' no longer exists."
+            self.logger.error(log_msg)
+            signals.log_message.emit(log_msg)
+            return
+
         try:
-            if not os.path.exists(source_path):
-                msg = f"Cannot undo: Source file '{source_path}' no longer exists."
-                self.logger.error(msg)
-                signals.log_message.emit(f"[ERROR] {msg}")
-                return
-
-            final_destination = self._resolve_conflict(Path(self.target_folder) / os.path.basename(source_path))
-
-            shutil.move(source_path, final_destination)
-            msg = f"[UNDO] Moved '{os.path.basename(source_path)}' back to '{self.target_folder.name}'."
-            self.logger.info(msg)
-            signals.log_message.emit(msg)
+            # Resolve conflict at the destination (the original downloads folder)
+            destination_path = self._resolve_conflict(Path(original_path))
+            shutil.move(source_path, destination_path)
+            log_msg = f"[UNDO] Moved '{os.path.basename(source_path)}' back."
+            self.logger.info(log_msg)
+            signals.log_message.emit(log_msg)
         except Exception as e:
-            msg = f"Failed to undo move for '{os.path.basename(source_path)}'. Error: {e}"
-            self.logger.error(msg)
-            signals.log_message.emit(f"[ERROR] {msg}")
+            log_msg = f"Failed to undo move for {os.path.basename(source_path)}. Error: {e}"
+            self.logger.error(log_msg)
+            signals.log_message.emit(f"[ERROR] {log_msg}")
 
     def add_to_ignore_list(self, item_name: str):
+        """Adds an item to the config's ignore list and saves it."""
         self.logger.info(f"Adding '{item_name}' to ignore list.")
-        if item_name not in self.config.get("ignore_list", []):
-            if "ignore_list" not in self.config:
-                self.config["ignore_list"] = []
+        if item_name not in self.config["ignore_list"]:
             self.config["ignore_list"].append(item_name)
             self.config_manager.save_config(self.config)
+            # Update the engine's in-memory ignore list for the current session
             self.ignore_list = self.config["ignore_list"]
-            signals.log_message.emit(f"'{item_name}' added to ignore list. It will be ignored from now on.")
+            signals.log_message.emit(f"'{item_name}' added to ignore list.")
         else:
             signals.log_message.emit(f"'{item_name}' is already in the ignore list.")
 

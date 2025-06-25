@@ -7,8 +7,6 @@ class TidyCoreSignals(QObject):
     status_changed = Signal(bool)
     restart_engine = Signal()
     folder_decision_made = Signal(str, str, str)
-    
-    # The only signal we need for the chart. Simple and raw.
-    file_organized = Signal(str) # -> category_name
+    file_organized = Signal(str)
 
 signals = TidyCoreSignals()
