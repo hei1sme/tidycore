@@ -22,6 +22,13 @@ class TidyCoreSignals(QObject):
     
     # Signal emitted when settings have been changed and the engine needs a restart.
     restart_engine = Signal()
+    
+    # Emitted when a folder is moved, carrying all necessary info for the UI.
+    # Arguments:
+    #   str: Original path of the folder before it was moved.
+    #   str: The new, final path of the folder after the move.
+    #   str: The category it was moved into (e.g., "Images").
+    folder_decision_made = Signal(str, str, str)
 
 # Create a single, global instance of the signals object that can be imported
 # by both the engine and the GUI to ensure they are connected to the same signals.

@@ -4,11 +4,13 @@ import shutil
 import time
 import logging
 from pathlib import Path
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from tidycore.signals import signals
+# --- NEW: Import ConfigManager to save changes to the ignore list ---
+from tidycore.config_manager import ConfigManager
 
 class TidyCoreEngine(FileSystemEventHandler):
     """
@@ -28,6 +30,8 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.observer = Observer()
         self.files_organized_today = 0
         self.files_organized_total = 0
+        # --- NEW: Add a config manager instance for saving ---
+        self.config_manager = ConfigManager()
 
     def run(self):
         """Starts the file watching process."""
@@ -39,6 +43,7 @@ class TidyCoreEngine(FileSystemEventHandler):
         signals.status_changed.emit(self.is_running)
 
         try:
+            # The loop condition ensures it exits when observer.stop() is called
             while self.observer.is_alive():
                 if self.is_running:
                     self._process_cooldown_files()
@@ -70,29 +75,6 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.logger.info("Engine stop signal received.")
         if self.observer.is_alive():
             self.observer.stop()
-
-    def undo_move(self, source_path: str, destination_path: str):
-        """Moves an item back from its organized location to the target folder."""
-        self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")
-        try:
-            # Check if the source (the organized file) still exists
-            if not os.path.exists(source_path):
-                msg = f"Cannot undo: Source file '{source_path}' no longer exists."
-                self.logger.error(msg)
-                signals.log_message.emit(f"[ERROR] {msg}")
-                return
-
-            # Resolve conflicts at the original destination (the Downloads folder)
-            final_destination = self._resolve_conflict(Path(destination_path))
-
-            shutil.move(source_path, final_destination)
-            msg = f"Successfully moved '{os.path.basename(source_path)}' back to Downloads."
-            self.logger.info(msg)
-            signals.log_message.emit(msg)
-        except Exception as e:
-            msg = f"Failed to undo move for '{os.path.basename(source_path)}'. Error: {e}"
-            self.logger.error(msg)
-            signals.log_message.emit(f"[ERROR] {msg}")
 
     def initial_scan(self):
         self.logger.info("Performing initial scan of target folder...")
@@ -159,7 +141,7 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.logger.warning(f"Item {os.path.basename(path)} no longer exists. Skipping.")
             return
 
-        is_dir = os.path.isdir(path)
+        # --- MODIFICATION: Capture the original path for the signal ---
         original_path_str = str(path)
         self.logger.info(f"Processing: {os.path.basename(path)}")
         
@@ -183,17 +165,56 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.logger.info(log_msg)
             signals.log_message.emit(log_msg)
             
-            if not is_dir: # Only count files for stats
-                self.files_organized_today += 1
-                self.files_organized_total += 1
-                signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
-            else: # If it was a directory, emit the special signal
-                signals.folder_decision_made.emit(str(destination_path), original_path_str)
+            # Update stats for any organized item (file or folder)
+            self.files_organized_today += 1
+            self.files_organized_total += 1
+            signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
+
+            # --- NEW: Emit the folder decision signal if it was a directory ---
+            if os.path.isdir(destination_path):
+                signals.folder_decision_made.emit(original_path_str, str(destination_path), category)
 
         except Exception as e:
             log_msg = f"Failed to move {os.path.basename(path)}. Error: {e}"
             self.logger.error(log_msg)
             signals.log_message.emit(f"[ERROR] {log_msg}")
+
+    # --- NEW METHODS FOR UNDO AND IGNORE ---
+    def undo_move(self, source_path: str, destination_path: str):
+        """Moves an item back from its organized location to the target folder."""
+        self.logger.info(f"Undo requested for '{os.path.basename(source_path)}'.")
+        try:
+            if not os.path.exists(source_path):
+                msg = f"Cannot undo: Source file '{source_path}' no longer exists."
+                self.logger.error(msg)
+                signals.log_message.emit(f"[ERROR] {msg}")
+                return
+
+            # Note: The original destination is now the target folder itself.
+            final_destination = self._resolve_conflict(Path(self.target_folder) / os.path.basename(source_path))
+
+            shutil.move(source_path, final_destination)
+            msg = f"[UNDO] Moved '{os.path.basename(source_path)}' back to '{self.target_folder.name}'."
+            self.logger.info(msg)
+            signals.log_message.emit(msg)
+        except Exception as e:
+            msg = f"Failed to undo move for '{os.path.basename(source_path)}'. Error: {e}"
+            self.logger.error(msg)
+            signals.log_message.emit(f"[ERROR] {msg}")
+
+    def add_to_ignore_list(self, item_name: str):
+        """Adds an item to the config's ignore list and saves it."""
+        self.logger.info(f"Adding '{item_name}' to ignore list.")
+        if item_name not in self.config.get("ignore_list", []):
+            if "ignore_list" not in self.config:
+                self.config["ignore_list"] = []
+            self.config["ignore_list"].append(item_name)
+            self.config_manager.save_config(self.config)
+            # Update the in-memory ignore list for the current session
+            self.ignore_list = self.config["ignore_list"]
+            signals.log_message.emit(f"'{item_name}' added to ignore list. It will be ignored from now on.")
+        else:
+            signals.log_message.emit(f"'{item_name}' is already in the ignore list.")
 
     def _get_category(self, path: str) -> Tuple[str, Optional[str]]:
         if os.path.isdir(path):
@@ -221,7 +242,6 @@ class TidyCoreEngine(FileSystemEventHandler):
         try:
             for root, _, files in os.walk(folder_path):
                 for file in files:
-                    # Pass the full path to _get_category
                     category, _ = self._get_category(os.path.join(root, file))
                     if category in category_counts:
                         category_counts[category] += 1

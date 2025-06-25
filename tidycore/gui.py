@@ -2,7 +2,8 @@
 import sys
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
-    QPushButton, QGroupBox, QTextEdit, QSystemTrayIcon, QMenu, QDialog
+    QPushButton, QGroupBox, QTextEdit, QSystemTrayIcon, QMenu, QDialog,
+    QVBoxLayout
 )
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QAction
@@ -11,6 +12,7 @@ from PySide6.QtGui import QIcon, QAction
 from tidycore.signals import signals
 from tidycore.settings_window import SettingsWindow
 from tidycore.config_manager import ConfigManager
+from tidycore.folder_decision_widget import FolderDecisionWidget
 
 # --- Modern Stylesheet (QSS) ---
 # This is like CSS for our Qt application. We define the visual style here.
@@ -73,7 +75,6 @@ class TidyCoreGUI(QMainWindow):
     def __init__(self, engine):
         super().__init__()
         self.engine = engine
-        # --- NEW: Instantiate the config manager ---
         self.config_manager = ConfigManager()
 
         self.setWindowTitle("TidyCore Dashboard")
@@ -99,6 +100,7 @@ class TidyCoreGUI(QMainWindow):
         signals.log_message.connect(self.add_log_message)
         signals.update_stats.connect(self.update_statistics)
         signals.status_changed.connect(self.update_status)
+        signals.folder_decision_made.connect(self.add_folder_decision)
     
     def add_log_message(self, message: str):
         """Adds a message to the beginning of the activity feed."""
@@ -118,6 +120,17 @@ class TidyCoreGUI(QMainWindow):
             self.status_label.setText("Paused")
             self.status_label.setStyleSheet("color: #f1fa8c;") # Yellow
             self.pause_button.setText("Resume Watching")
+
+    # --- NEW SLOT for folder decisions ---
+    def add_folder_decision(self, original_path: str, new_path: str, category: str):
+        """Creates and adds a new folder decision widget to the panel."""
+        # Hide the placeholder label if it's visible
+        if self.placeholder_label.isVisible():
+            self.placeholder_label.hide()
+            
+        decision_widget = FolderDecisionWidget(self.engine, original_path, new_path, category)
+        # We insert at the top (position 0) so new decisions appear first
+        self.folder_decisions_layout.insertWidget(0, decision_widget)
 
     def _create_status_box(self) -> None:
         """Creates the main status and quick actions box."""
@@ -172,12 +185,21 @@ class TidyCoreGUI(QMainWindow):
     def _create_folder_decisions_box(self) -> None:
         """Creates the box for recent folder decisions."""
         box = QGroupBox("Recent Folder Decisions")
-        layout = QGridLayout(box)
         
-        placeholder_label = QLabel("No recent folder decisions to show.")
-        placeholder_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        layout.addWidget(placeholder_label)
+        # This widget will hold the layout for our decision widgets
+        main_widget = QWidget()
+        self.folder_decisions_layout = QVBoxLayout(main_widget)
+        self.folder_decisions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        
+        # Add a placeholder label for when the box is empty
+        self.placeholder_label = QLabel("No recent folder decisions to show.")
+        self.placeholder_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.folder_decisions_layout.addWidget(self.placeholder_label)
 
+        # The group box needs a layout to contain our main_widget
+        box_layout = QVBoxLayout(box)
+        box_layout.addWidget(main_widget)
+        
         self.grid_layout.addWidget(box, 1, 2, 2, 1)
 
     def _create_statistics_box(self) -> None:
@@ -198,7 +220,6 @@ class TidyCoreGUI(QMainWindow):
         settings_button = QPushButton("Settings")
         logs_button = QPushButton("View Full Log")
 
-        # --- NEW: Connect the settings button ---
         settings_button.clicked.connect(self._open_settings_window)
         
         layout.addWidget(settings_button, 0, 0)
@@ -206,35 +227,28 @@ class TidyCoreGUI(QMainWindow):
 
         self.grid_layout.addWidget(box, 3, 1, 1, 2)
 
-    # --- NEW: Method to launch the settings window ---
     def _open_settings_window(self):
         """Creates and shows the settings dialog."""
-        # Pause the engine while settings are being changed
         was_running = self.engine.is_running
         if was_running:
             self.engine.pause()
         
         dialog = SettingsWindow(self.config_manager, self)
-        # The `exec()` call makes the dialog modal (blocks the main window)
         result = dialog.exec()
         
-        # The dialog's `accept()` was called, meaning the user clicked "Save"
         if result == QDialog.Accepted:
             signals.log_message.emit("Settings saved. Restarting engine to apply changes...")
             signals.restart_engine.emit()
         else:
-            # User clicked "Cancel" or closed the window, so resume if it was running before
             if was_running:
                 self.engine.resume()
 
     def _create_tray_icon(self):
         """Creates the system tray icon and its context menu."""
-        # You'll need an icon file, e.g., 'icon.png' in your root directory
-        # Using a dummy icon for now, will need to be created.
         if QIcon.hasThemeIcon("document-save"):
             icon = QIcon.fromTheme("document-save")
         else:
-            icon = QIcon() # Fallback to a blank icon if none are found.
+            icon = QIcon()
             
         self.tray_icon = QSystemTrayIcon(icon, self)
         self.tray_icon.setToolTip("TidyCore is running")
