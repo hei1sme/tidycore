@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-07-07
+
+### Added
+- 🏗️ **Professional Project Structure**: Complete reorganization following modern Python standards
+  - Modern `src/` package layout with proper separation of concerns
+  - Centralized documentation in `docs/` directory
+  - Organized configuration files in `config/` directory
+  - Build and utility scripts in `scripts/` directory
+- 💾 **Persistent Statistics Database**: SQLite integration for persistent data storage
+  - Historical file organization tracking
+  - Performance metrics and analytics
+  - Category breakdown and trend analysis
+  - Automatic backup and recovery mechanisms
+- 🔄 **Intelligent Auto-Update System**: Advanced update management
+  - Silent background update checking
+  - Modern notification dialogs with release notes
+  - One-click download and installation
+  - Manual update check from system tray
+- 📖 **Comprehensive Documentation**: Professional documentation suite
+  - Detailed project structure guide
+  - Enhanced installation instructions
+  - Developer contribution guidelines
+  - Complete API documentation
+- 🎨 **Enhanced UI Performance**: Improved visual design and responsiveness
+  - Better memory management and resource usage
+  - Smoother animations and transitions
+  - Enhanced accessibility and readability
+  - Optimized rendering performance
+
+### Changed
+- 🔧 **Import Structure**: Updated to use modern Python import patterns
+  - Main entry point imports from `src.tidycore`
+  - Internal modules use relative imports
+  - Clean separation between packages
+- 📦 **Build System**: Enhanced build process for new structure
+  - Updated PyInstaller configuration
+  - Modified GitHub Actions workflow
+  - Improved release packaging
+  - Better error handling in build scripts
+- ⚙️ **Configuration Management**: Centralized configuration handling
+  - Config files moved to dedicated directory
+  - Enhanced validation and error reporting
+  - Backward compatibility maintained
+  - Automatic migration for existing setups
+- 📊 **Statistics System**: Upgraded from in-memory to persistent storage
+  - SQLite database replaces temporary counters
+  - Historical data preservation
+  - Performance optimized queries
+  - Enhanced data integrity
+
+### Technical
+- **Architecture**: Modern Python package structure with `src/` layout
+- **Database**: SQLite integration for persistent statistics
+- **Updates**: GitHub API integration with intelligent version management
+- **Build**: Enhanced PyInstaller configuration for new structure
+- **Documentation**: Comprehensive project documentation and guides
+- **Performance**: Optimized memory usage and rendering efficiency
+- **Compatibility**: Seamless upgrade path from v1.x.x
+
+### Migration Notes
+- All existing configurations automatically detected and preserved
+- Statistics data enhanced with persistent storage
+- No user action required for upgrade
+- Release packages maintain identical functionality
+
 ## [1.0.0] - 2025-07-06
 
 ### Added

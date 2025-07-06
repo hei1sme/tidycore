@@ -7,14 +7,14 @@ from pathlib import Path
 
 def get_current_version():
     """Get the current version from __init__.py"""
-    init_file = Path("tidycore/__init__.py")
+    init_file = Path("src/tidycore/__init__.py")
     content = init_file.read_text()
     match = re.search(r'__version__ = ["\']([^"\']+)["\']', content)
-    return match.group(1) if match else "1.0.0"
+    return match.group(1) if match else "2.0.0"
 
 def update_version(new_version):
     """Update the version in __init__.py"""
-    init_file = Path("tidycore/__init__.py")
+    init_file = Path("src/tidycore/__init__.py")
     content = init_file.read_text()
     new_content = re.sub(
         r'__version__ = ["\'][^"\']+["\']',
