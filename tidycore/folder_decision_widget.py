@@ -16,18 +16,24 @@ class FolderDecisionWidget(QWidget):
         self.setObjectName("DecisionCard")
         self.setStyleSheet("""
             #DecisionCard {
-                background-color: #3b3f51;
-                border-radius: 5px;
-                margin-bottom: 8px;
+                background-color: rgba(58, 62, 102, 0.85);
+                border-radius: 12px;
+                margin-bottom: 12px;
+                border: 1.5px solid #7aa2f7;
             }
-            #DecisionCard QLabel { font-size: 12px; }
+            #DecisionCard QLabel { font-size: 13px; color: #c0c5ea; }
             #DecisionCard QPushButton { 
-                font-size: 11px; 
-                padding: 4px 8px; 
-                font-weight: normal;
-                background-color: #414868;
+                font-size: 12px; 
+                padding: 6px 14px; 
+                font-weight: 500;
+                background-color: #7aa2f7;
+                color: #23243a;
+                border-radius: 8px;
+                border: none;
+                margin-left: 6px;
+                margin-right: 6px;
             }
-            #DecisionCard QPushButton:hover { background-color: #565f89; }
+            #DecisionCard QPushButton:hover { background-color: #bb9af7; color: #fff; }
         """)
 
         main_layout = QVBoxLayout(self)
