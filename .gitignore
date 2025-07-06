@@ -51,3 +51,14 @@ RELEASE_NOTES_v*.md
 # Temporary update files
 *_update.exe
 *.backup
+update_tidycore.bat
+
+# Distribution and packaging
+*.tar.gz
+*.whl
+setup.py
+MANIFEST.in
+
+# CI/CD artifacts
+.github/workflows/artifacts/
+release_artifacts/

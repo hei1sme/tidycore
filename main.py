@@ -5,11 +5,11 @@ import time
 from typing import Final
 
 from PySide6.QtWidgets import QApplication
-from tidycore.gui import TidyCoreGUI
-from tidycore.logger import setup_logger
-from tidycore.engine import TidyCoreEngine
-from tidycore.config_manager import load_config
-from tidycore.signals import signals
+from src.tidycore.gui import TidyCoreGUI
+from src.tidycore.logger import setup_logger
+from src.tidycore.engine import TidyCoreEngine
+from src.tidycore.config_manager import load_config
+from src.tidycore.signals import signals
 
 # ────────────────────────────────────────────────────────────
 # Define application exit codes for clear error handling in CI/CD and shell scripts.
