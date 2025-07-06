@@ -1,3 +1,3 @@
 # tidycore/__init__.py
 
-__version__ = "1.0.0-beta"
+__version__ = "1.0.0"

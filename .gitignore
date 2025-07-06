@@ -1,6 +1,7 @@
 # Byte-compiled / cache
 __pycache__/
 *.py[cod]
+*$py.class
 
 # Logs
 *.log
@@ -10,6 +11,11 @@ tidycore.log
 build/
 dist/
 *.spec
+release/
+
+# Database files
+*.db
+tidycore_stats.db
 
 # Installer logs
 pip-log.txt
@@ -27,8 +33,21 @@ desktop.ini
 # IDE/editor-specific
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # Virtual environments (if any)
 env/
 venv/
 .venv/
+.env
+
+# Git-specific
+.git/
+
+# Release notes (generated)
+RELEASE_NOTES_v*.md
+
+# Temporary update files
+*_update.exe
+*.backup

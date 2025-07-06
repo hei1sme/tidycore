@@ -1,11 +1,14 @@
 # tidycore/about_page.py
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QScrollArea
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QGroupBox, QScrollArea, QPushButton, QHBoxLayout
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtCore import QUrl
+import qtawesome as qta
 
 # Import the version from our new __init__.py
 from tidycore import __version__
+# Import the update manager
+from tidycore.updater import update_manager
 
 class AboutPage(QWidget):
     """The 'About' page for the TidyCore application."""
@@ -34,8 +37,12 @@ class AboutPage(QWidget):
         
         # --- Creator Info Section ---
         creator_info_box = self._create_creator_info_section()
+        
+        # --- Update Section ---
+        update_box = self._create_update_section()
 
         layout.addWidget(app_info_box)
+        layout.addWidget(update_box)
         layout.addWidget(creator_info_box)
 
     def _create_app_info_section(self) -> QGroupBox:
@@ -107,4 +114,49 @@ class AboutPage(QWidget):
         layout.addWidget(profile_label)
         layout.addWidget(links_label)
 
+        return box
+
+    def _create_update_section(self) -> QGroupBox:
+        """Create the update section with check for updates button."""
+        box = QGroupBox("Updates")
+        layout = QVBoxLayout(box)
+        
+        # Current version info
+        version_text = f"<p><b>Current Version:</b> {__version__}</p>"
+        version_label = QLabel(version_text)
+        version_label.setWordWrap(True)
+        
+        # Update description
+        update_desc = """
+        <p>TidyCore can automatically check for updates to keep you up-to-date with the latest features and bug fixes.</p>
+        """
+        desc_label = QLabel(update_desc)
+        desc_label.setWordWrap(True)
+        
+        # Check for updates button
+        update_button = QPushButton("Check for Updates")
+        update_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 #7aa2f7, stop:1 #7dcfff);
+                color: #23243a;
+                border: none;
+                font-size: 14px;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                margin: 10px 0;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+                    stop:0 #bb9af7, stop:1 #7aa2f7);
+                color: #fff;
+            }
+        """)
+        update_button.clicked.connect(lambda: update_manager.check_for_updates(silent=False))
+        
+        layout.addWidget(version_label)
+        layout.addWidget(desc_label)
+        layout.addWidget(update_button)
+        
         return box

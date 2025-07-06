@@ -6,7 +6,8 @@ import qtawesome as qta
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
     QPushButton, QLabel, QStackedWidget, QGroupBox, QTextEdit,
-    QButtonGroup, QSystemTrayIcon, QMenu, QGridLayout, QScrollArea
+    QButtonGroup, QSystemTrayIcon, QMenu, QGridLayout, QScrollArea,
+    QGraphicsDropShadowEffect, QProgressBar, QFrame
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QIcon, QAction, QColor, QFont
@@ -19,76 +20,124 @@ from tidycore.settings_page import SettingsPage
 from tidycore.about_page import AboutPage
 # --- NEW: Import the get_absolute_path function ---
 from tidycore.utils import get_absolute_path
-
-# STYLESHEET is now more detailed
+# --- NEW: Import the database ---
+from tidycore.database import statistics_db
+# --- NEW: Import the updater ---
+from tidycore.updater import update_manager
+from tidycore.update_dialog import UpdateDialog, UpdateNotificationWidget
 STYLESHEET = """
 /* ---- Main Window ---- */
 #MainWindow {
-    background-color: #1a1b26; /* Very dark navy background */
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #1a1b26);
+    font-family: 'Segoe UI', 'Inter', 'Roboto', Arial, sans-serif;
 }
-/* ... (rest of the stylesheet is unchanged) ... */
 #Sidebar {
-    background-color: #24283b; /* Slightly lighter sidebar */
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #31355a, stop:1 #23243a);
     border-right: 1px solid #3b3f51;
 }
+#Sidebar #LogoLabel {
+    margin-bottom: 22px;
+    padding: 12px 0 12px 0;
+    text-align: center;
+}
 #Sidebar QPushButton {
-    background-color: transparent;
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #31355a);
     border: none;
     color: #a9b1d6;
     text-align: left;
-    padding: 10px;
-    border-radius: 8px; /* Slightly more rounded */
-    font-size: 14px;
+    padding: 18px 28px;
+    border-radius: 18px;
+    font-size: 18px;
+    margin-bottom: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
 }
 #Sidebar QPushButton:hover {
-    background-color: #414868;
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
+    color: #23243a;
+    font-weight: bold;
+    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
 }
 #Sidebar QPushButton:checked {
-    background-color: #7aa2f7; /* Bright blue for active button */
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #bb9af7);
     color: #ffffff;
     font-weight: bold;
+    /* box-shadow: 0 6px 24px 0 rgba(122,162,247,0.22); */
+    border: 1.5px solid #7aa2f7;
+}
+/* Modern global QPushButton style */
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
+    color: #23243a;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 12px 28px;
+    margin: 8px 0;
+    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
+}
+/* Specific styling for compact buttons */
+QPushButton[objectName="pause_resume_button"] {
+    font-size: 14px;
+    padding: 8px 16px;
+    margin: 4px 0;
+}
+QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bb9af7, stop:1 #7aa2f7);
+    color: #fff;
+    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
+}
+QPushButton:pressed {
+    background: #414868;
+    color: #fff;
 }
 #ContentArea {
-    padding: 10px;
+    padding: 28px 28px 18px 28px;
 }
-/* ---- QGroupBox Polish ---- */
 QGroupBox {
-    background-color: #24283b;
-    border-radius: 8px;
-    border: none; /* Remove the default border */
-    margin-top: 15px; /* More space for the title */
-    padding-top: 15px;
-    font-size: 14px;
+    background-color: rgba(35,36,58,0.96);
+    border-radius: 24px;
+    border: 1.5px solid #363a4f;
+    margin-top: 26px;
+    padding-top: 26px;
+    font-size: 18px;
     font-weight: bold;
     color: #c0c5ea;
 }
-/* We will draw the title manually for more control */
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding: 0 8px;
-    left: 20px; /* Indent title to make space for icon */
+    padding: 0 20px;
+    left: 28px;
+    font-size: 20px;
+    color: #7aa2f7;
 }
-
-/* ... (QLabel, QTextEdit styles are the same) ... */
 QLabel {
     color: #a9b1d6;
-    font-size: 13px;
+    font-size: 17px;
     font-weight: normal;
 }
 QLabel#StatusLabel {
-    font-size: 20px;
+    font-size: 30px;
     font-weight: bold;
-    color: #9ece6a; /* Green for active */
+    color: #9ece6a;
+    letter-spacing: 1px;
 }
 QLabel#StatusLabel[paused="true"] {
-    color: #f7768e; /* Red/Pink for paused */
+    color: #f7768e;
 }
 QTextEdit {
-    background-color: #1a1b26;
-    border: 1px solid #3b3f51;
-    border-radius: 5px;
+    background-color: #181926;
+    border: 1.5px solid #363a4f;
+    border-radius: 16px;
     color: #a9b1d6;
+    font-size: 16px;
+    padding: 16px;
+}
+"""
+"""
 }
 """
 
@@ -115,9 +164,21 @@ class TidyCoreGUI(QMainWindow):
         self.chart_update_timer.setInterval(250) # Refresh 250ms after the last event
         self.chart_update_timer.timeout.connect(self.redraw_dashboard_charts)
 
-        self.setWindowTitle("TidyCore")
-        self.setMinimumSize(950, 700) # Slightly larger for better spacing
+        # --- UPDATE NOTIFICATION WIDGET ---
+        self.update_notification = None
+        
+        # Load initial category data from database
+        self.category_counts = statistics_db.get_category_stats_today()
+
+        self.setWindowTitle("TidyCore - File Organization Dashboard")
+        self.setMinimumSize(1000, 750) # Slightly larger for better spacing
         self.setObjectName("MainWindow")
+        
+        # Set window icon
+        icon_path = get_absolute_path("icon.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
+        
         self.setStyleSheet(STYLESHEET)
 
         main_layout = QHBoxLayout()
@@ -136,54 +197,114 @@ class TidyCoreGUI(QMainWindow):
         
         self._create_tray_icon()
         self._connect_signals()
+        
+        # --- NEW: Check for updates on startup (silent check) ---
+        QTimer.singleShot(2000, lambda: update_manager.check_for_updates(silent=True))
+        
+        # --- NEW: Connect update manager signals ---
+        update_manager.checker.update_available.connect(self.show_update_notification)
+        
         QTimer.singleShot(100, self.engine.request_status)
 
 
     def _create_sidebar(self) -> QWidget:
+
         sidebar_widget = QWidget()
         sidebar_widget.setObjectName("Sidebar")
-        sidebar_widget.setFixedWidth(200)
+        sidebar_widget.setFixedWidth(220)
         sidebar_layout = QVBoxLayout(sidebar_widget)
         sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        sidebar_layout.setContentsMargins(10, 10, 10, 10)
-        sidebar_layout.setSpacing(10)
+        sidebar_layout.setContentsMargins(16, 18, 16, 18)
+        sidebar_layout.setSpacing(8)
 
+        # Logo or avatar at the top
+        logo_label = QLabel()
+        logo_label.setObjectName("LogoLabel")
+        logo_path = get_absolute_path("icon.png")
+        if os.path.exists(logo_path):
+            logo_label.setPixmap(QIcon(logo_path).pixmap(64, 64))
+        else:
+            logo_label.setText("🧹")
+            logo_label.setStyleSheet("font-size: 40px; text-align: center; color: #7aa2f7;")
+        logo_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sidebar_layout.addWidget(logo_label)
+
+        # App name
         title_label = QLabel("TidyCore")
-        title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #ffffff; margin-bottom: 20px; padding-left: 5px;")
-        
+        title_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #ffffff; margin-bottom: 18px; padding-left: 0px; letter-spacing: 2px; text-align: center;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        sidebar_layout.addWidget(title_label)
+
+        # Create navigation buttons
         self.dashboard_button = QPushButton("  Dashboard")
         self.dashboard_button.setIcon(qta.icon("fa5s.home"))
         self.dashboard_button.setCheckable(True)
-        
+
         self.settings_button = QPushButton("  Settings")
         self.settings_button.setIcon(qta.icon("fa5s.cog"))
         self.settings_button.setCheckable(True)
 
-        # --- NEW: About Button ---
         self.about_button = QPushButton("  About")
         self.about_button.setIcon(qta.icon("fa5s.info-circle"))
         self.about_button.setCheckable(True)
-        
-        # Add all buttons to the exclusive group
+
         self.nav_button_group = QButtonGroup(self)
         self.nav_button_group.setExclusive(True)
         self.nav_button_group.addButton(self.dashboard_button)
         self.nav_button_group.addButton(self.settings_button)
         self.nav_button_group.addButton(self.about_button)
+
+        self.dashboard_button.setChecked(True)
+
+        # Create indicator bars for modern navigation
+        self.dashboard_indicator = QWidget()
+        self.dashboard_indicator.setFixedSize(4, 40)
+        self.dashboard_indicator.setStyleSheet("background: #7aa2f7; border-radius: 2px;")
         
-        self.dashboard_button.setChecked(True) # Default page
+        self.settings_indicator = QWidget()
+        self.settings_indicator.setFixedSize(4, 40)
+        self.settings_indicator.setStyleSheet("background: #7aa2f7; border-radius: 2px;")
+        
+        self.about_indicator = QWidget()
+        self.about_indicator.setFixedSize(4, 40)
+        self.about_indicator.setStyleSheet("background: #7aa2f7; border-radius: 2px;")
 
-        # Add all buttons to the layout
-        sidebar_layout.addWidget(title_label)
-        sidebar_layout.addWidget(self.dashboard_button)
-        sidebar_layout.addWidget(self.settings_button)
-        sidebar_layout.addWidget(self.about_button) # Add to layout
+        # Create layouts for each navigation row (indicator + button)
+        def create_nav_row(indicator, button):
+            row_widget = QWidget()
+            row_layout = QHBoxLayout(row_widget)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            row_layout.setSpacing(8)
+            row_layout.addWidget(indicator)
+            row_layout.addWidget(button, 1)
+            return row_widget
 
-        # Connect all buttons to switch pages
+        dashboard_row = create_nav_row(self.dashboard_indicator, self.dashboard_button)
+        settings_row = create_nav_row(self.settings_indicator, self.settings_button)
+        about_row = create_nav_row(self.about_indicator, self.about_button)
+
+        sidebar_layout.addWidget(dashboard_row)
+        sidebar_layout.addWidget(settings_row)
+        sidebar_layout.addWidget(about_row)
+        sidebar_layout.addStretch(1)
+
+        # Update indicators when buttons are toggled
+        def update_indicators():
+            self.dashboard_indicator.setVisible(self.dashboard_button.isChecked())
+            self.settings_indicator.setVisible(self.settings_button.isChecked())
+            self.about_indicator.setVisible(self.about_button.isChecked())
+
+        self.dashboard_button.toggled.connect(update_indicators)
+        self.settings_button.toggled.connect(update_indicators)
+        self.about_button.toggled.connect(update_indicators)
+        
+        # Initialize indicators
+        update_indicators()
+
         self.dashboard_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
         self.settings_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
-        self.about_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2)) # Connect new button
-        
+        self.about_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))
+
         return sidebar_widget
 
 
@@ -230,53 +351,79 @@ class TidyCoreGUI(QMainWindow):
         layout.addWidget(activity_feed_box, 2, 0)       # Row 2, Col 0
         layout.addWidget(folder_decisions_box, 2, 1)    # Row 2, Col 1
 
-        # Set stretch factors to control sizing
-        layout.setColumnStretch(0, 2) # Chart column is twice as wide
-        layout.setColumnStretch(1, 1)
-        layout.setRowStretch(0, 1)    # Status row
-        layout.setRowStretch(1, 1)    # Stats row
-        layout.setRowStretch(2, 2)    # Activity feed is twice as tall
+        # Set stretch factors to control sizing with better proportions
+        layout.setColumnStretch(0, 3) # Chart column is larger
+        layout.setColumnStretch(1, 2) # Right column
+        layout.setRowStretch(0, 2)    # Status row 
+        layout.setRowStretch(1, 2)    # Stats row 
+        layout.setRowStretch(2, 4)    # Activity feed is largest
+        
+        # Add spacing between grid items
+        layout.setSpacing(20)
+        layout.setContentsMargins(10, 10, 10, 10)
 
         return page
 
 
-    def _create_chart_box(self) -> QGroupBox:
-        """Creates the box for the category breakdown chart."""
-        box = QGroupBox("Category Breakdown")
-        layout = QHBoxLayout(box)
+    def _add_card_shadow(self, widget):
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(36)
+        shadow.setOffset(0, 10)
+        shadow.setColor(QColor(60, 70, 120, 110))
+        widget.setGraphicsEffect(shadow)
 
+    def _create_chart_box(self) -> QGroupBox:
+        box = QGroupBox("Category Breakdown")
+        self._add_card_shadow(box)
+        layout = QHBoxLayout(box)
         self.chart_widget = PieChartWidget()
-        
-        # This layout will hold the text legend
         self.legend_layout = QVBoxLayout()
         self.legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.legend_layout.setSpacing(10)
-        
         layout.addWidget(self.chart_widget, 2)
         layout.addLayout(self.legend_layout, 1)
-        
         return box
 
 
     def _create_status_box(self) -> QGroupBox:
-        """Creates the main status and quick actions box."""
         box = QGroupBox("Status")
+        self._add_card_shadow(box)
         layout = QVBoxLayout(box)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
+        layout.setSpacing(15)  # Reduced spacing
+        layout.setContentsMargins(15, 20, 15, 15)  # Add margins for better fit
+        
+        # Status icon and text container
+        status_container = QWidget()
+        status_layout = QVBoxLayout(status_container)
+        status_layout.setSpacing(6)  # Reduced spacing
+        status_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        status_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Status icon
+        self.status_icon = QLabel("🔄")
+        self.status_icon.setStyleSheet("font-size: 28px;")  # Slightly smaller
+        self.status_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # Status text
         self.status_label = QLabel("Initializing...")
         self.status_label.setObjectName("StatusLabel")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
-        # We will use a single button and change its text
-        self.pause_resume_button = QPushButton("Pause Watching")
-        self.pause_resume_button.setFixedWidth(150) # Give it a nice fixed size
         
+        status_layout.addWidget(self.status_icon)
+        status_layout.addWidget(self.status_label)
+        
+        # Button with icon - make it more compact
+        self.pause_resume_button = QPushButton("⏸️ Pause Watching")
+        self.pause_resume_button.setObjectName("pause_resume_button")
+        self.pause_resume_button.setMinimumWidth(160)  # Slightly smaller
+        self.pause_resume_button.setMinimumHeight(35)  # Smaller height
+        self.pause_resume_button.setMaximumHeight(40)  # Limit max height
         self.pause_resume_button.clicked.connect(self.toggle_pause_resume)
-
-        layout.addWidget(self.status_label)
-        layout.addWidget(self.pause_resume_button)
         
+        layout.addWidget(status_container)
+        layout.addWidget(self.pause_resume_button)
+        layout.addStretch(0)  # Add a small stretch to push content up
         return box
     
     def toggle_pause_resume(self):
@@ -291,37 +438,113 @@ class TidyCoreGUI(QMainWindow):
 
     def _create_statistics_box(self) -> QGroupBox:
         box = QGroupBox("Statistics")
+        self._add_card_shadow(box)
         layout = QVBoxLayout(box)
-        self.stats_label = QLabel("Files Today: 0\nTotal Organized: 0")
-        self.stats_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.stats_label)
+        layout.setSpacing(15)
+        
+        # Today's files stat
+        today_container = QWidget()
+        today_layout = QHBoxLayout(today_container)
+        today_layout.setContentsMargins(0, 0, 0, 0)
+        
+        today_icon = QLabel("📊")
+        today_icon.setStyleSheet("font-size: 24px;")
+        today_icon.setFixedWidth(40)
+        
+        today_info = QVBoxLayout()
+        today_info.setSpacing(2)
+        self.today_number = QLabel("0")
+        self.today_number.setStyleSheet("font-size: 28px; font-weight: bold; color: #7aa2f7; margin: 0;")
+        today_text = QLabel("Files Today")
+        today_text.setStyleSheet("font-size: 14px; color: #a9b1d6; margin: 0;")
+        today_info.addWidget(self.today_number)
+        today_info.addWidget(today_text)
+        
+        today_layout.addWidget(today_icon)
+        today_layout.addLayout(today_info)
+        today_layout.addStretch()
+        
+        # Total organized stat
+        total_container = QWidget()
+        total_layout = QHBoxLayout(total_container)
+        total_layout.setContentsMargins(0, 0, 0, 0)
+        
+        total_icon = QLabel("🎯")
+        total_icon.setStyleSheet("font-size: 24px;")
+        total_icon.setFixedWidth(40)
+        
+        total_info = QVBoxLayout()
+        total_info.setSpacing(2)
+        self.total_number = QLabel("0")
+        self.total_number.setStyleSheet("font-size: 28px; font-weight: bold; color: #9ece6a; margin: 0;")
+        total_text = QLabel("Total Organized")
+        total_text.setStyleSheet("font-size: 14px; color: #a9b1d6; margin: 0;")
+        total_info.addWidget(self.total_number)
+        total_info.addWidget(total_text)
+        
+        total_layout.addWidget(total_icon)
+        total_layout.addLayout(total_info)
+        total_layout.addStretch()
+        
+        layout.addWidget(today_container)
+        layout.addWidget(total_container)
         return box
 
 
     def _create_activity_feed_box(self) -> QGroupBox:
         box = QGroupBox("Live Activity Feed")
+        self._add_card_shadow(box)
         layout = QVBoxLayout(box)
+        
         self.activity_feed = QTextEdit()
         self.activity_feed.setReadOnly(True)
+        self.activity_feed.setStyleSheet("""
+            QTextEdit {
+                background-color: #181926;
+                border: 1.5px solid #363a4f;
+                border-radius: 16px;
+                color: #a9b1d6;
+                font-size: 14px;
+                padding: 16px;
+                font-family: 'Consolas', 'Monaco', monospace;
+                line-height: 1.4;
+            }
+        """)
+        
+        # Add a clear button
+        clear_button = QPushButton("Clear Feed")
+        clear_button.setStyleSheet("""
+            QPushButton {
+                background: #414868;
+                color: #a9b1d6;
+                border: 1px solid #545c7e;
+                font-size: 13px;
+                padding: 6px 16px;
+                margin: 4px 0;
+            }
+            QPushButton:hover {
+                background: #545c7e;
+                color: #ffffff;
+            }
+        """)
+        clear_button.clicked.connect(self.activity_feed.clear)
+        
         layout.addWidget(self.activity_feed)
+        layout.addWidget(clear_button)
         return box
     
     def _create_folder_decisions_box(self) -> QGroupBox:
         box = QGroupBox("Recent Folder Decisions")
-        
+        self._add_card_shadow(box)
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
         scroll_area.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
-        
         content_widget = QWidget()
         self.folder_decisions_layout = QVBoxLayout(content_widget)
         self.folder_decisions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        
         scroll_area.setWidget(content_widget)
-        
         box_layout = QVBoxLayout(box)
         box_layout.addWidget(scroll_area)
-        
         return box
 
 
@@ -334,27 +557,56 @@ class TidyCoreGUI(QMainWindow):
 
 
     def add_log_message(self, message: str):
-        self.activity_feed.insertPlainText(f"{message}\n")
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        # Color code different message types
+        if "ERROR" in message.upper() or "FAILED" in message.upper():
+            color = "#f7768e"  # Red for errors
+            icon = "❌"
+        elif "WARNING" in message.upper():
+            color = "#e0af68"  # Yellow for warnings
+            icon = "⚠️"
+        elif "MOVED" in message.upper() or "ORGANIZED" in message.upper():
+            color = "#9ece6a"  # Green for success
+            icon = "✅"
+        elif "PROCESSING" in message.upper() or "SCANNING" in message.upper():
+            color = "#7aa2f7"  # Blue for processing
+            icon = "🔄"
+        else:
+            color = "#a9b1d6"  # Default color
+            icon = "ℹ️"
+        
+        formatted_message = f'<span style="color: #545c7e;">[{timestamp}]</span> <span style="color: {color};">{icon} {message}</span>'
+        self.activity_feed.append(formatted_message)
+        
+        # Auto-scroll to bottom
+        scrollbar = self.activity_feed.verticalScrollBar()
+        scrollbar.setValue(scrollbar.maximum())
 
     def update_statistics(self, today_count: int, total_count: int):
-        self.stats_label.setText(f"Files Today: {today_count}\nTotal Organized: {total_count}")
+        self.today_number.setText(str(today_count))
+        self.total_number.setText(str(total_count))
 
     def update_status(self, is_running: bool):
         """Updates the status label AND the pause/resume button text."""
         if is_running:
             self.status_label.setText("Active")
             self.status_label.setProperty("paused", "false")
-            self.pause_resume_button.setText("Pause Watching")
+            self.status_icon.setText("✅")
+            self.pause_resume_button.setText("⏸️ Pause Watching")
         else:
             self.status_label.setText("Paused")
             self.status_label.setProperty("paused", "true")
-            self.pause_resume_button.setText("Resume Watching")
+            self.status_icon.setText("⏸️")
+            self.pause_resume_button.setText("▶️ Resume Watching")
             
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
 
     def on_file_organized(self, category_name: str):
-        self.category_counts[category_name] = self.category_counts.get(category_name, 0) + 1
+        # Refresh category data from database
+        self.category_counts = statistics_db.get_category_stats_today()
         self.chart_update_timer.start()
         
     def add_folder_decision(self, original_path: str, new_path: str, category: str):
@@ -397,20 +649,105 @@ class TidyCoreGUI(QMainWindow):
             self._add_legend_item(category, count, total, color)
             
     def _add_legend_item(self, name, value, total, color):
-        legend_item_layout = QHBoxLayout()
-        color_box = QLabel()
-        color_box.setFixedSize(12, 12)
-        color_box.setStyleSheet(f"background-color: {color.name()}; border-radius: 6px;")
+        # Create a container widget for better styling
+        item_widget = QWidget()
+        item_widget.setStyleSheet("""
+            QWidget {
+                background-color: rgba(26,27,38,0.8);
+                border-radius: 8px;
+                padding: 8px;
+                margin: 2px 0;
+            }
+            QWidget:hover {
+                background-color: rgba(35,36,58,0.9);
+            }
+        """)
         
+        legend_item_layout = QHBoxLayout(item_widget)
+        legend_item_layout.setContentsMargins(8, 6, 8, 6)
+        legend_item_layout.setSpacing(12)
+        
+        # Color indicator - make it larger and more prominent
+        color_box = QLabel()
+        color_box.setFixedSize(16, 16)
+        color_box.setStyleSheet(f"""
+            background-color: {color.name()};
+            border-radius: 8px;
+            border: 2px solid rgba(255,255,255,0.1);
+        """)
+        
+        # Text container for category info
+        text_container = QVBoxLayout()
+        text_container.setSpacing(2)
+        text_container.setContentsMargins(0, 0, 0, 0)
+        
+        # Category name
+        category_label = QLabel(name)
+        category_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #c0c5ea; margin: 0;")
+        
+        # Statistics
         percentage = (value / total) * 100
-        label_text = f"{name}: {value} ({percentage:.1f}%)"
-        text_label = QLabel(label_text)
+        stats_text = f"{value} files ({percentage:.1f}%)"
+        stats_label = QLabel(stats_text)
+        stats_label.setStyleSheet("font-size: 12px; color: #9aa5ce; margin: 0;")
+        
+        text_container.addWidget(category_label)
+        text_container.addWidget(stats_label)
+        
+        # Progress bar for visual percentage
+        progress_container = QWidget()
+        progress_container.setFixedHeight(4)
+        progress_container.setStyleSheet(f"""
+            background-color: rgba(35,36,58,0.5);
+            border-radius: 2px;
+        """)
+        
+        progress_bar = QWidget(progress_container)
+        progress_width = int((percentage / 100) * 60)  # Max width of 60px
+        progress_bar.setFixedSize(progress_width, 4)
+        progress_bar.setStyleSheet(f"""
+            background-color: {color.name()};
+            border-radius: 2px;
+        """)
         
         legend_item_layout.addWidget(color_box)
-        legend_item_layout.addWidget(text_label)
-        legend_item_layout.addStretch()
+        legend_item_layout.addLayout(text_container, 1)
+        legend_item_layout.addWidget(progress_container)
         
-        self.legend_layout.addLayout(legend_item_layout)
+        self.legend_layout.addWidget(item_widget)
+
+    def show_update_notification(self, update_info):
+        """Show update notification using the modern dialog."""
+        try:
+            # Close any existing notification
+            if self.update_notification:
+                self.update_notification.close()
+            
+            # Create new notification widget
+            self.update_notification = UpdateNotificationWidget(update_info, self)
+            self.update_notification.show_update_dialog.connect(self._show_update_dialog)
+            self.update_notification.show()
+            
+        except Exception as e:
+            self.logger.error(f"Failed to show update notification: {e}")
+    
+    def _show_update_dialog(self, update_info):
+        """Show the detailed update dialog."""
+        try:
+            dialog = UpdateDialog(update_info, self)
+            dialog.download_requested.connect(self._handle_update_download)
+            dialog.exec()
+        except Exception as e:
+            self.logger.error(f"Failed to show update dialog: {e}")
+    
+    def _handle_update_download(self, download_url):
+        """Handle update download request."""
+        try:
+            # Use the existing update manager functionality
+            update_manager.current_update_info = {"download_url": download_url}
+            update_manager._start_update_process()
+        except Exception as e:
+            self.logger.error(f"Failed to handle update download: {e}")
 
     def _create_tray_icon(self):
         # --- MODIFIED: Use the absolute path for the icon ---
@@ -428,12 +765,15 @@ class TidyCoreGUI(QMainWindow):
         
         menu = QMenu()
         show_action = QAction("Show Dashboard", self)
+        update_action = QAction("Check for Updates", self)
         quit_action = QAction("Quit TidyCore", self)
 
         show_action.triggered.connect(self.show_window)
+        update_action.triggered.connect(lambda: update_manager.check_for_updates(silent=False))
         quit_action.triggered.connect(self.app.quit)
 
         menu.addAction(show_action)
+        menu.addAction(update_action)
         menu.addSeparator()
         menu.addAction(quit_action)
         

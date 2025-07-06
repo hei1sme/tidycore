@@ -10,6 +10,7 @@ from watchdog.events import FileSystemEventHandler
 
 from tidycore.signals import signals
 from tidycore.config_manager import ConfigManager
+from tidycore.database import statistics_db
 
 class TidyCoreEngine(FileSystemEventHandler):
     """
@@ -29,8 +30,10 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.cooldown_files: Dict[str, float] = {}
         self.is_running = True
         self.observer = Observer()
-        self.files_organized_today = 0
-        self.files_organized_total = 0
+        
+        # Initialize statistics from database
+        self.files_organized_today = statistics_db.get_today_stats()
+        self.files_organized_total = statistics_db.get_total_stats()
 
     def run(self):
         """Starts the file watching process."""
@@ -177,8 +180,18 @@ class TidyCoreEngine(FileSystemEventHandler):
             self.logger.info(log_msg)
             signals.log_message.emit(log_msg)
             
-            self.files_organized_today += 1
-            self.files_organized_total += 1
+            # Record in database
+            statistics_db.record_file_operation(
+                filename=os.path.basename(path),
+                source_path=str(path),
+                destination_path=str(destination_path),
+                category=category,
+                subcategory=sub_category
+            )
+            
+            # Update in-memory counters from database
+            self.files_organized_today = statistics_db.get_today_stats()
+            self.files_organized_total = statistics_db.get_total_stats()
             signals.update_stats.emit(self.files_organized_today, self.files_organized_total)
             
             signals.file_organized.emit(category)
