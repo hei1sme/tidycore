@@ -24,7 +24,7 @@
 - **Build Script**: Automated PyInstaller build process (`build.py`)
 - **CI/CD Pipeline**: GitHub Actions workflow for automated builds
 - **Multi-Platform**: Windows, Linux, and macOS build configurations
-- **Version Management**: Comprehensive version bumping system (`version_manager.py`)
+- **Version Management**: Comprehensive version bumping system (`scripts/manage_version.py`)
 - **Release Packaging**: Automated ZIP creation with all dependencies
 - **Documentation**: Complete installation and user guides
 
@@ -45,7 +45,7 @@ TidyCore/
 │   ├── about_page.py        # About page with update button
 │   └── ...other modules
 ├── build.py                 # Executable build script
-├── version_manager.py       # Version and release management
+├── scripts/manage_version.py # Version and release management
 ├── .github/workflows/       # CI/CD configuration
 ├── INSTALLATION.md          # Installation guide
 └── RELEASE_NOTES_TEMPLATE.md # Release documentation
@@ -148,9 +148,9 @@ jobs:
 #### Version Management
 ```bash
 # Version bumping
-python version_manager.py patch   # 1.0.0 → 1.0.1
-python version_manager.py minor   # 1.0.0 → 1.1.0
-python version_manager.py major   # 1.0.0 → 2.0.0
+python scripts/manage_version.py patch   # 1.0.0 → 1.0.1
+python scripts/manage_version.py minor   # 1.0.0 → 1.1.0
+python scripts/manage_version.py major   # 1.0.0 → 2.0.0
 
 # Release preparation
 1. Update version in __init__.py
@@ -162,7 +162,7 @@ python version_manager.py major   # 1.0.0 → 2.0.0
 #### Distribution
 ```bash
 # Local build
-python build.py
+python scripts/build_release.py
 
 # Output:
 release/

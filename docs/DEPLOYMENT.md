@@ -6,9 +6,9 @@
 
 1. **Update version number:**
    ```bash
-   python manage_version.py patch  # For bug fixes
-   python manage_version.py minor  # For new features
-   python manage_version.py major  # For breaking changes
+   python scripts/manage_version.py patch  # For bug fixes
+   python scripts/manage_version.py minor  # For new features
+   python scripts/manage_version.py major  # For breaking changes
    ```
 
 2. **Test the application:**
@@ -26,7 +26,7 @@
 
 1. **Build the executable:**
    ```bash
-   python build_release.py
+   python scripts/build_release.py
    ```
 
 2. **Test the built executable:**
@@ -126,14 +126,14 @@ The workflow in `.github/workflows/release.yml` automatically:
 2. **Testing:**
    ```bash
    python main.py  # Test locally
-   python build_release.py  # Test build
+   python scripts/build_release.py  # Test build
    ```
 
 3. **Release preparation:**
    ```bash
    git checkout main
    git merge feature/new-feature
-   python manage_version.py minor
+   python scripts/manage_version.py minor
    git commit -m "Bump version for release"
    git tag v1.1.0
    git push origin main --tags
@@ -154,7 +154,7 @@ The build script uses these PyInstaller options:
 
 To modify the build:
 
-1. **Edit `build_release.py`:**
+1. **Edit `scripts/build_release.py`:**
    - Modify PyInstaller command
    - Add/remove included files
    - Change output directory

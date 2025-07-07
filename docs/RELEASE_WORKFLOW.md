@@ -61,15 +61,29 @@ git push origin v{version}
 
 ## 🛠️ Automation Scripts
 
-### build_release.py
+### scripts/build_release.py
+
 ```python
 #!/usr/bin/env python3
 import subprocess
 import shutil
 import os
+import sys
 from pathlib import Path
 
-def build_release(version):
+def get_version():
+    """Get the current version from the package."""
+    # Add src to path to import tidycore
+    sys.path.insert(0, str(Path(__file__).parent.parent / 'src'))
+    try:
+        from tidycore import __version__
+        return __version__
+    except ImportError:
+        print("Warning: Could not import version from tidycore. Using default version.")
+        return "1.0.0"
+
+def build_release():
+    version = get_version()
     print(f"Building TidyCore v{version}...")
     
     # Clean build directory
@@ -87,15 +101,17 @@ def build_release(version):
     print(f"Release package created: TidyCore-v{version}-Windows.zip")
 
 if __name__ == "__main__":
-    from tidycore import __version__
-    build_release(__version__)
+    build_release()
 ```
 
 ## 📝 Release Notes Template
+
 See `RELEASE_NOTES_TEMPLATE.md` for the standard format.
 
 ## 🔧 CI/CD Setup (Optional)
+
 For automated builds, you can set up GitHub Actions to:
+
 - Build releases automatically on tag push
 - Run tests before building
 - Upload release assets automatically
