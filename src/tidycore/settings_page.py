@@ -21,12 +21,18 @@ class SettingsPage(QWidget):
         super().__init__(parent)
         self.config_manager = ConfigManager()
         self.current_config = {} # Will be populated by refresh_settings
+        
+        # Flag to prevent startup messages during initialization
+        self._initializing = True
 
         # Initial UI build
         self._build_ui()
         
         # Load the initial data into the UI
         self.refresh_settings()
+        
+        # Mark initialization as complete
+        self._initializing = False
 
         # Connect to the config changed signal to stay in sync
         signals.config_changed.connect(self.refresh_settings)
@@ -91,8 +97,10 @@ class SettingsPage(QWidget):
         # --- NEW: Populate the rules tree ---
         self._populate_rules_tree()
 
-        # --- NEW: Set the checkbox state ---
+        # --- NEW: Set the checkbox state (block all signals during update) ---
+        self.startup_checkbox.blockSignals(True)
         self.startup_checkbox.setChecked(startup_manager.is_enabled())
+        self.startup_checkbox.blockSignals(False)
 
     # --- NEW METHOD for the general settings box ---
     def _create_general_settings_section(self) -> QGroupBox:
@@ -125,6 +133,10 @@ class SettingsPage(QWidget):
 
     # --- NEW METHOD to handle the checkbox logic ---
     def _handle_startup_toggle(self, checked: bool):
+        # Don't show messages during initialization
+        if self._initializing:
+            return
+            
         try:
             if checked:
                 startup_manager.enable()

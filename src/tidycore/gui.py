@@ -22,8 +22,13 @@ from .about_page import AboutPage
 from .utils import get_absolute_path
 # --- NEW: Import the database ---
 from .database import statistics_db
-# --- NEW: Import the updater ---
-from .updater import update_manager
+# --- NEW: Import the updater safely ---
+try:
+    from .updater import update_manager
+except ImportError as e:
+    import logging
+    logging.getLogger("TidyCore").warning(f"Failed to import update_manager: {e}")
+    update_manager = None
 from .update_dialog import UpdateDialog, UpdateNotificationWidget
 STYLESHEET = """
 /* ---- Main Window ---- */
@@ -203,6 +208,7 @@ class TidyCoreGUI(QMainWindow):
         
         # --- NEW: Connect update manager signals ---
         update_manager.checker.update_available.connect(self.show_update_notification)
+        update_manager.checker.error_occurred.connect(self._on_update_error)
         
         QTimer.singleShot(100, self.engine.request_status)
 
@@ -743,11 +749,43 @@ class TidyCoreGUI(QMainWindow):
     def _handle_update_download(self, download_url):
         """Handle update download request."""
         try:
-            # Use the existing update manager functionality
-            update_manager.current_update_info = {"download_url": download_url}
-            update_manager._start_update_process()
+            # Import UpdateDialog locally to avoid circular imports
+            from .update_dialog import UpdateDialog
+            from PySide6.QtWidgets import QApplication
+            
+            # Store reference to current dialog
+            current_dialog = None
+            for widget in QApplication.allWidgets():
+                if isinstance(widget, UpdateDialog) and widget.isVisible():
+                    current_dialog = widget
+                    break
+            
+            if current_dialog:
+                # Connect progress updates to the dialog
+                update_manager.current_update_info = {"download_url": download_url}
+                update_manager.current_dialog = current_dialog
+                
+                # Start the download using the handle method instead
+                update_manager._handle_download_request(download_url)
+                
+                # Connect progress signals after creating the download thread
+                if hasattr(update_manager, 'download_thread'):
+                    update_manager.download_thread.progress_updated.connect(current_dialog.update_progress)
+            else:
+                # Fallback to original method
+                update_manager.current_update_info = {"download_url": download_url}
+                update_manager._start_update_process()
         except Exception as e:
             self.logger.error(f"Failed to handle update download: {e}")
+    
+    def _on_update_error(self, error_message):
+        """Handle update check errors."""
+        self.logger.error(f"Update check failed: {error_message}")
+        # Optionally show a user-friendly message for manual check failures
+        if not getattr(update_manager, 'silent_check', True):
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.warning(self, "Update Check Failed", 
+                              f"Failed to check for updates:\n{error_message}")
 
     def _create_tray_icon(self):
         # --- MODIFIED: Use the absolute path for the icon ---
@@ -786,12 +824,32 @@ class TidyCoreGUI(QMainWindow):
         self.raise_()
 
     def closeEvent(self, event):
-        if self.isVisible():
+        """Handle the window close event."""
+        if hasattr(self, 'engine') and self.engine:
+            self.engine.stop()
+        
+        # Hide to tray instead of closing if not explicitly exiting
+        if not getattr(self, '_force_exit', False):
             event.ignore()
             self.hide()
-            self.tray_icon.showMessage(
-                "TidyCore",
-                "TidyCore is still running in the background.",
-                QSystemTrayIcon.Information,
-                2000
-            )
+            if not hasattr(self, '_first_hide'):
+                self._first_hide = True
+                self.tray_icon.showMessage(
+                    "TidyCore",
+                    "Application was minimized to tray",
+                    QSystemTrayIcon.MessageIcon.Information,
+                    2000
+                )
+        else:
+            event.accept()
+
+    def _exit_application(self):
+        """Exit the application completely."""
+        self._force_exit = True
+        
+        # Stop the engine
+        if hasattr(self, 'engine') and self.engine:
+            self.engine.stop()
+        
+        # Close the application
+        QApplication.quit()

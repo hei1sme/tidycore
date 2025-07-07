@@ -7,8 +7,13 @@ import qtawesome as qta
 
 # Import the version from our new __init__.py
 from . import __version__
-# Import the update manager
-from .updater import update_manager
+# Import the update manager safely
+try:
+    from .updater import update_manager
+except ImportError as e:
+    import logging
+    logging.getLogger("TidyCore").warning(f"Failed to import update_manager: {e}")
+    update_manager = None
 
 class AboutPage(QWidget):
     """The 'About' page for the TidyCore application."""
@@ -133,6 +138,9 @@ class AboutPage(QWidget):
         desc_label = QLabel(update_desc)
         desc_label.setWordWrap(True)
         
+        # Buttons layout
+        buttons_layout = QHBoxLayout()
+        
         # Check for updates button
         update_button = QPushButton("Check for Updates")
         update_button.setStyleSheet("""
@@ -153,10 +161,29 @@ class AboutPage(QWidget):
                 color: #fff;
             }
         """)
-        update_button.clicked.connect(lambda: update_manager.check_for_updates(silent=False))
+        
+        # Connect button based on update_manager availability
+        if update_manager:
+            update_button.clicked.connect(lambda: update_manager.check_for_updates(silent=False))
+        else:
+            update_button.clicked.connect(self._show_update_unavailable)
+            update_button.setText("Updates Unavailable")
+        
+        # Add only the update button to the layout
+        buttons_layout.addWidget(update_button)
         
         layout.addWidget(version_label)
         layout.addWidget(desc_label)
-        layout.addWidget(update_button)
+        layout.addLayout(buttons_layout)
         
         return box
+    
+    def _show_update_unavailable(self):
+        """Show message when update manager is unavailable."""
+        from PySide6.QtWidgets import QMessageBox
+        msg = QMessageBox()
+        msg.setWindowTitle("Update Feature Unavailable")
+        msg.setText("The update feature is currently unavailable.\n\n"
+                   "This may be due to a configuration issue or missing dependencies.")
+        msg.setIcon(QMessageBox.Icon.Warning)
+        msg.exec()

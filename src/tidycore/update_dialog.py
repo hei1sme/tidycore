@@ -20,6 +20,10 @@ class UpdateDialog(QDialog):
         self.setFixedSize(500, 400)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
         
+        # Initialize logger
+        import logging
+        self.logger = logging.getLogger("TidyCore")
+        
         self._setup_ui()
         self._apply_styles()
     
@@ -218,7 +222,13 @@ class UpdateDialog(QDialog):
         
         download_url = self.update_info.get('download_url')
         if download_url:
+            self.logger.info(f"Starting download from UpdateDialog: {download_url}")
             self.download_requested.emit(download_url)
+        else:
+            # If no download_url in update_info, try to construct it from version
+            self.logger.error("No download URL found in update info")
+            self.logger.error(f"Available keys in update_info: {list(self.update_info.keys())}")
+            self.update_progress(-1)  # Show error
     
     def update_progress(self, progress: int):
         """Update the download progress."""

@@ -79,25 +79,50 @@ class UpdateManager:
         """Get the appropriate download URL for the current platform."""
         assets = release_data.get("assets", [])
         
+        # Log available assets for debugging
+        self.logger.info(f"Available assets: {[asset.get('name', 'Unknown') for asset in assets]}")
+        
         # Determine platform-specific filename
         import platform
         system = platform.system().lower()
         
         if system == "windows":
-            pattern = "windows"
+            # More comprehensive patterns for Windows
+            patterns = ["windows", "win"]
         elif system == "darwin":
-            pattern = "macos"
+            patterns = ["macos", "mac", "darwin"]
         else:
-            pattern = "linux"
+            patterns = ["linux"]
         
-        # Look for platform-specific executable
+        # First priority: Look for platform-specific executable
         for asset in assets:
-            name = asset["name"].lower()
-            if pattern in name and (".exe" in name or ".zip" in name):
-                return asset["browser_download_url"]
+            name = asset.get("name", "").lower()
+            for pattern in patterns:
+                if pattern in name and (".exe" in name or ".zip" in name):
+                    self.logger.info(f"Found platform-specific asset: {asset.get('name')}")
+                    return asset.get("browser_download_url")
+        
+        # Second priority: Look for any zip or exe file
+        for asset in assets:
+            name = asset.get("name", "").lower()
+            if ".zip" in name or ".exe" in name:
+                self.logger.info(f"Found executable/zip asset: {asset.get('name')}")
+                return asset.get("browser_download_url")
+        
+        # Third priority: Look for any binary asset (not source code)
+        for asset in assets:
+            name = asset.get("name", "").lower()
+            if not any(src in name for src in ["source", "src", "tar.gz", ".tar"]):
+                self.logger.info(f"Found binary asset: {asset.get('name')}")
+                return asset.get("browser_download_url")
         
         # Fallback to first asset
-        return assets[0]["browser_download_url"] if assets else None
+        if assets:
+            self.logger.info(f"Using first available asset: {assets[0].get('name')}")
+            return assets[0].get("browser_download_url")
+        
+        self.logger.info("No assets found")
+        return None
     
     def _get_asset_size(self, release_data: Dict) -> str:
         """Get the size of the main asset."""
