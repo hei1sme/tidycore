@@ -4,7 +4,7 @@
 
 ### 1. Pre-Release Checklist
 - [ ] All features tested and working
-- [ ] Update version number in `tidycore/__init__.py`
+- [ ] Update version number in `src/tidycore/__init__.py`
 - [ ] Update CHANGELOG.md with new features/fixes
 - [ ] Run full test suite
 - [ ] Check all dependencies in requirements.txt
@@ -20,11 +20,11 @@
 # 1. Clean previous builds
 rm -rf build/ dist/
 
-# 2. Build executable with PyInstaller
-python -m PyInstaller TidyCore.spec
+# 2. Build executable using our build script
+python scripts/build_release.py
 
 # 3. Test the built executable
-./dist/TidyCore/TidyCore.exe
+./release/TidyCore-v2.0.1/TidyCore.exe
 
 # 4. Create release package
 cd dist/

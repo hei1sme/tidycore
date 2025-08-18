@@ -4,23 +4,25 @@
 
 ### Step 1: Prepare the Release
 
-1. **Update version number:**
-   ```bash
-   python scripts/manage_version.py patch  # For bug fixes
-   python scripts/manage_version.py minor  # For new features
-   python scripts/manage_version.py major  # For breaking changes
-   ```
+1. **Update version number manually:**
+   - Update `src/tidycore/__init__.py` with new version
+   - Update `README.md` with new version number
+   - Update any version references in documentation
 
 2. **Test the application:**
    ```bash
    python main.py
-   # Test all features thoroughly
+   # Test all features thoroughly, especially:
+   # - File monitoring and organization
+   # - Settings save functionality
+   # - Database persistence
+   # - Background operation when GUI closed
    ```
 
 3. **Update documentation:**
    - Update `README.md` if needed
-   - Update `CHANGELOG.md` (create if doesn't exist)
-   - Review `RELEASE_NOTES_TEMPLATE.md`
+   - Update `CHANGELOG.md` with new release notes
+   - Review installation instructions
 
 ### Step 2: Build and Test Executable
 
@@ -41,12 +43,12 @@
 1. **Commit changes:**
    ```bash
    git add .
-   git commit -m "Release v1.0.0: Add database integration and update system"
+   git commit -m "🚀 Release v2.0.1: Critical bug fixes and enhanced functionality"
    ```
 
 2. **Create and push tag:**
    ```bash
-   git tag v1.0.0
+   git tag v2.0.1
    git push origin main
    git push origin v1.0.0
    ```

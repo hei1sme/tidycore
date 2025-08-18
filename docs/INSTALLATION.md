@@ -6,7 +6,7 @@
 
 1. **Download the Latest Release**
    - Go to the [TidyCore Releases Page](https://github.com/hei1sme/TidyCore/releases)
-   - Download `TidyCore-v{version}-Windows.zip`
+   - Download `TidyCore-v2.0.1-Windows.zip` (or latest version)
 
 2. **Extract and Run**
    ```

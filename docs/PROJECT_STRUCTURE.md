@@ -35,13 +35,12 @@ TidyCore/
 │   ├── build_release.py     # Release build script
 │   └── manage_version.py    # Version management utility
 ├── 📁 docs/                 # Documentation
-│   ├── CHANGELOG.md         # Version history
-│   ├── INSTALLATION.md      # Installation guide
-│   ├── DEPLOYMENT.md        # Deployment instructions
-│   ├── DEVELOPMENT_SUMMARY.md # Development summary
-│   ├── RELEASE_NOTES_TEMPLATE.md # Release notes template
-│   ├── RELEASE_WORKFLOW.md  # Release process
-│   └── PROJECT_STRUCTURE.md # This file
+│   ├── CHANGELOG.md         # Version history and release notes
+│   ├── INSTALLATION.md      # Installation guide for users
+│   ├── DEPLOYMENT.md        # Deployment instructions for developers
+│   ├── PROJECT_STRUCTURE.md # This file - project organization
+│   ├── RELEASE_NOTES_TEMPLATE.md # Template for release notes
+│   └── RELEASE_WORKFLOW.md  # Release process documentation
 ├── 📁 assets/               # Static assets (for documentation)
 │   ├── dashboard.png        # Dashboard screenshot
 │   └── settings.png         # Settings screenshot

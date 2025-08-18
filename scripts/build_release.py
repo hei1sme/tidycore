@@ -97,9 +97,9 @@ def build_executable():
     """Build the executable using PyInstaller."""
     print("Building TidyCore executable...")
     
-    # PyInstaller command with options
+    # PyInstaller command with options - Use Python module approach
     cmd = [
-        'pyinstaller',
+        sys.executable, '-m', 'PyInstaller',  # Use Python module approach
         '--onefile',                    # Single file executable
         '--windowed',                   # No console window
         '--name=TidyCore',              # Executable name
@@ -302,8 +302,10 @@ def main():
     
     # Check if PyInstaller is installed
     try:
-        subprocess.run(['pyinstaller', '--version'], capture_output=True, check=True)
-    except (subprocess.CalledProcessError, FileNotFoundError):
+        # Try importing PyInstaller first
+        import PyInstaller
+        print(f"✅ PyInstaller found: {PyInstaller.__version__}")
+    except ImportError:
         print("❌ PyInstaller not found. Please install it with: pip install pyinstaller")
         return 1
     
