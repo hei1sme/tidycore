@@ -31,23 +31,71 @@ except ImportError as e:
     update_manager = None
 from .update_dialog import UpdateDialog, UpdateNotificationWidget
 STYLESHEET = """
-/* ---- Modern Professional Theme ---- */
+/* ---- STUNNING LUXURY UI DESIGN ---- */
 #MainWindow {
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #0f0f23, stop:0.3 #1a1b36, stop:0.7 #24273a, stop:1 #2a2d47);
-    font-family: 'Segoe UI Variable', 'SF Pro Display', 'Inter', 'Roboto', sans-serif;
-    color: #e2e8f0;
+        stop:0 #fdfbfb, stop:0.2 #ebedee, stop:0.8 #f7f9fc, stop:1 #ffffff);
+    font-family: 'SF Pro Display', 'Segoe UI Variable', 'Inter', 'Roboto', sans-serif;
+    color: #2d3748;
 }
+
+/* ---- SPECTACULAR GRADIENT SIDEBAR ---- */
 #Sidebar {
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-        stop:0 #1e293b, stop:0.5 #334155, stop:1 #1e293b);
-    border-right: 2px solid #475569;
-    border-radius: 0px 12px 12px 0px;
-    margin: 8px 0px 8px 8px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #667eea, stop:0.15 #764ba2, stop:0.35 #f093fb, stop:0.55 #f5576c, stop:0.75 #4facfe, stop:1 #00f2fe);
+    border: none;
+    border-radius: 25px;
+    margin: 16px 12px 16px 16px;
+    padding: 12px;
 }
+
 #Sidebar #LogoLabel {
-    color: #f1f5f9;
-    font-size: 26px;
+    color: #ffffff;
+    font-size: 32px;
+    font-weight: 900;
+    text-align: center;
+    padding: 28px 16px;
+    margin: 20px 12px 32px 12px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 rgba(255,255,255,0.3), stop:1 rgba(255,255,255,0.15));
+    border-radius: 20px;
+    border: 3px solid rgba(255,255,255,0.4);
+    letter-spacing: 3px;
+    text-shadow: 0px 3px 8px rgba(0,0,0,0.3);
+}
+
+#Sidebar QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 rgba(255,255,255,0.25), stop:1 rgba(255,255,255,0.1));
+    border: 2px solid rgba(255,255,255,0.35);
+    color: #ffffff;
+    text-align: left;
+    padding: 20px 28px;
+    border-radius: 16px;
+    font-size: 17px;
+    font-weight: 700;
+    margin: 10px 16px;
+    text-shadow: 0px 2px 4px rgba(0,0,0,0.25);
+}
+
+#Sidebar QPushButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 rgba(255,255,255,0.4), stop:1 rgba(255,255,255,0.25));
+    border: 2px solid rgba(255,255,255,0.6);
+    color: #ffffff;
+    text-shadow: 0px 2px 6px rgba(0,0,0,0.4);
+}
+
+#Sidebar QPushButton:checked {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #ffffff, stop:1 #f7fafc);
+    color: #2d3748;
+    border: 2px solid rgba(255,255,255,0.9);
+    font-weight: 800;
+    text-shadow: none;
+}
+
+/* ---- PREMIUM CONTENT AREA ---- */
     font-weight: 700;
     text-align: center;
     padding: 20px 0px;
