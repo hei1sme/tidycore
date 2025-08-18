@@ -23,320 +23,124 @@ from .utils import get_absolute_path
 # --- NEW: Import the database ---
 from .database import statistics_db
 # --- NEW: Import the updater safely ---
-try:
-    from .updater import update_manager
-except ImportError as e:
-    import logging
-    logging.getLogger("TidyCore").warning(f"Failed to import update_manager: {e}")
-    update_manager = None
+from .updater import get_update_manager
 from .update_dialog import UpdateDialog, UpdateNotificationWidget
+
+# --- NEW: Get the single instance of the update manager ---
+update_manager = get_update_manager()
 STYLESHEET = """
-/* ---- STUNNING LUXURY UI DESIGN ---- */
+/* ---- Main Window ---- */
 #MainWindow {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #fdfbfb, stop:0.2 #ebedee, stop:0.8 #f7f9fc, stop:1 #ffffff);
-    font-family: 'SF Pro Display', 'Segoe UI Variable', 'Inter', 'Roboto', sans-serif;
-    color: #2d3748;
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #1a1b26);
+    font-family: 'Segoe UI', 'Inter', 'Roboto', Arial, sans-serif;
 }
-
-/* ---- SPECTACULAR GRADIENT SIDEBAR ---- */
 #Sidebar {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #667eea, stop:0.15 #764ba2, stop:0.35 #f093fb, stop:0.55 #f5576c, stop:0.75 #4facfe, stop:1 #00f2fe);
-    border: none;
-    border-radius: 25px;
-    margin: 16px 12px 16px 16px;
-    padding: 12px;
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #31355a, stop:1 #23243a);
+    border-right: 1px solid #3b3f51;
 }
-
 #Sidebar #LogoLabel {
-    color: #ffffff;
-    font-size: 32px;
-    font-weight: 900;
+    margin-bottom: 22px;
+    padding: 12px 0 12px 0;
     text-align: center;
-    padding: 28px 16px;
-    margin: 20px 12px 32px 12px;
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 rgba(255,255,255,0.3), stop:1 rgba(255,255,255,0.15));
-    border-radius: 20px;
-    border: 3px solid rgba(255,255,255,0.4);
-    letter-spacing: 3px;
-    text-shadow: 0px 3px 8px rgba(0,0,0,0.3);
-}
-
-#Sidebar QPushButton {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 rgba(255,255,255,0.25), stop:1 rgba(255,255,255,0.1));
-    border: 2px solid rgba(255,255,255,0.35);
-    color: #ffffff;
-    text-align: left;
-    padding: 20px 28px;
-    border-radius: 16px;
-    font-size: 17px;
-    font-weight: 700;
-    margin: 10px 16px;
-    text-shadow: 0px 2px 4px rgba(0,0,0,0.25);
-}
-
-#Sidebar QPushButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 rgba(255,255,255,0.4), stop:1 rgba(255,255,255,0.25));
-    border: 2px solid rgba(255,255,255,0.6);
-    color: #ffffff;
-    text-shadow: 0px 2px 6px rgba(0,0,0,0.4);
-}
-
-#Sidebar QPushButton:checked {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #ffffff, stop:1 #f7fafc);
-    color: #2d3748;
-    border: 2px solid rgba(255,255,255,0.9);
-    font-weight: 800;
-    text-shadow: none;
-}
-
-/* ---- PREMIUM CONTENT AREA ---- */
-    font-weight: 700;
-    text-align: center;
-    padding: 20px 0px;
-    margin: 12px;
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #3b82f6, stop:1 #8b5cf6);
-    border-radius: 12px;
-    border: 1px solid #60a5fa;
 }
 #Sidebar QPushButton {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #334155, stop:1 #475569);
-    border: 1px solid transparent;
-    color: #cbd5e1;
-    text-align: left;
-    padding: 16px 24px;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 500;
-    margin: 6px 12px;
-}
-#Sidebar QPushButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #3b82f6, stop:1 #6366f1);
-    color: #ffffff;
-    border: 1px solid #60a5fa;
-}
-#Sidebar QPushButton:checked {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #1d4ed8, stop:1 #7c3aed);
-    color: #ffffff;
-    border: 1px solid #3b82f6;
-    font-weight: 600;
-}
-/* Modern professional QPushButton style */
-QPushButton {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #3b82f6, stop:1 #6366f1);
-    color: #ffffff;
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #31355a);
     border: none;
-    border-radius: 10px;
-    font-size: 14px;
+    color: #a9b1d6;
+    text-align: left;
+    padding: 18px 28px;
+    border-radius: 18px;
+    font-size: 18px;
+    margin-bottom: 12px;
     font-weight: 600;
-    padding: 12px 24px;
-    margin: 6px 2px;
-    min-height: 20px;
+    letter-spacing: 1px;
+    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
+}
+#Sidebar QPushButton:hover {
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
+    color: #23243a;
+    font-weight: bold;
+    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
+}
+#Sidebar QPushButton:checked {
+    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #bb9af7);
+    color: #ffffff;
+    font-weight: bold;
+    /* box-shadow: 0 6px 24px 0 rgba(122,162,247,0.22); */
+    border: 1.5px solid #7aa2f7;
+}
+/* Modern global QPushButton style */
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
+    color: #23243a;
+    border: none;
+    border-radius: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    padding: 12px 28px;
+    margin: 8px 0;
+    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
 }
 /* Specific styling for compact buttons */
 QPushButton[objectName="pause_resume_button"] {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #f59e0b, stop:1 #f97316);
-    font-size: 13px;
+    font-size: 14px;
     padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 600;
+    margin: 4px 0;
 }
 QPushButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #2563eb, stop:1 #4f46e5);
-}
-QPushButton[objectName="pause_resume_button"]:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #d97706, stop:1 #ea580c);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bb9af7, stop:1 #7aa2f7);
+    color: #fff;
+    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
 }
 QPushButton:pressed {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #1d4ed8, stop:1 #4338ca);
+    background: #414868;
+    color: #fff;
 }
 #ContentArea {
     padding: 28px 28px 18px 28px;
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #f8fafc, stop:1 #f1f5f9);
-    border-radius: 16px;
-    margin: 8px;
-    border: 1px solid #e2e8f0;
 }
 QGroupBox {
-    font-weight: 600;
-    font-size: 16px;
-    color: #1e293b;
-    border: 2px solid #cbd5e1;
-    border-radius: 12px;
-    margin-top: 16px;
-    padding-top: 12px;
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
-        stop:0 #ffffff, stop:1 #f8fafc);
+    background-color: rgba(35,36,58,0.96);
+    border-radius: 24px;
+    border: 1.5px solid #363a4f;
+    margin-top: 26px;
+    padding-top: 26px;
+    font-size: 18px;
+    font-weight: bold;
+    color: #c0c5ea;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 16px;
-    padding: 6px 12px;
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #3b82f6, stop:1 #6366f1);
-    color: #ffffff;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
+    subcontrol-position: top left;
+    padding: 0 20px;
+    left: 28px;
+    font-size: 20px;
+    color: #7aa2f7;
 }
 QLabel {
-    color: #1e293b;
-    font-size: 14px;
+    color: #a9b1d6;
+    font-size: 17px;
+    font-weight: normal;
 }
 QLabel#StatusLabel {
-    color: #059669;
-    font-size: 24px;
-    font-weight: 700;
+    font-size: 30px;
+    font-weight: bold;
+    color: #9ece6a;
     letter-spacing: 1px;
 }
 QLabel#StatusLabel[paused="true"] {
-    color: #dc2626;
+    color: #f7768e;
 }
 QTextEdit {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 12px;
-    color: #1e293b;
-    font-size: 14px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    selection-background-color: #3b82f6;
+    background-color: #181926;
+    border: 1.5px solid #363a4f;
+    border-radius: 16px;
+    color: #a9b1d6;
+    font-size: 16px;
+    padding: 16px;
 }
-QTextEdit:focus {
-    border: 2px solid #3b82f6;
-}
-
-/* ---- Modern Input Fields ---- */
-QLineEdit {
-    background: #ffffff;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 10px 14px;
-    font-size: 14px;
-    color: #1e293b;
-    selection-background-color: #3b82f6;
-}
-
-QLineEdit:focus {
-    border: 2px solid #3b82f6;
-    background: #fefffe;
-}
-
-/* ---- Professional List Widgets ---- */
-QListWidget {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    padding: 8px;
-    color: #1e293b;
-    font-size: 14px;
-}
-
-QListWidget::item {
-    padding: 8px;
-    border-radius: 6px;
-    margin: 2px 0px;
-}
-
-QListWidget::item:selected {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #3b82f6, stop:1 #6366f1);
-    color: #ffffff;
-}
-
-QListWidget::item:hover {
-    background: #f1f5f9;
-}
-
-/* ---- Enhanced Tree Widget ---- */
-QTreeWidget {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    color: #1e293b;
-    font-size: 14px;
-    alternate-background-color: #f8fafc;
-}
-
-QTreeWidget::item {
-    padding: 6px;
-    border-radius: 4px;
-}
-
-QTreeWidget::item:selected {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
-        stop:0 #3b82f6, stop:1 #6366f1);
-    color: #ffffff;
-}
-
-QTreeWidget::item:hover {
-    background: #e0f2fe;
-}
-
-/* ---- Modern Radio Buttons ---- */
-QRadioButton {
-    color: #1e293b;
-    font-size: 14px;
-    font-weight: 500;
-    spacing: 8px;
-}
-
-QRadioButton::indicator {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #cbd5e1;
-    border-radius: 10px;
-    background: #ffffff;
-}
-
-QRadioButton::indicator:checked {
-    background: qradial-gradient(cx:0.5, cy:0.5, radius:0.4, 
-        stop:0 #3b82f6, stop:1 #ffffff);
-    border: 2px solid #3b82f6;
-}
-
-QRadioButton::indicator:hover {
-    border: 2px solid #60a5fa;
-}
-
-/* ---- Modern Check Boxes ---- */
-QCheckBox {
-    color: #1e293b;
-    font-size: 14px;
-    font-weight: 500;
-    spacing: 8px;
-}
-
-QCheckBox::indicator {
-    width: 16px;
-    height: 16px;
-    border: 2px solid #cbd5e1;
-    border-radius: 4px;
-    background: #ffffff;
-}
-
-QCheckBox::indicator:checked {
-    background: #3b82f6;
-    border: 2px solid #3b82f6;
-}
-
-QCheckBox::indicator:hover {
-    border: 2px solid #60a5fa;
+"""
+"""
 }
 """
 
@@ -754,6 +558,8 @@ class TidyCoreGUI(QMainWindow):
         signals.status_changed.connect(self.update_status)
         signals.file_organized.connect(self.on_file_organized)
         signals.folder_decision_made.connect(self.add_folder_decision)
+        # FIXED: Connect config_changed signal to handle configuration updates
+        signals.config_changed.connect(self.handle_config_change)
 
 
     def add_log_message(self, message: str):
@@ -1002,7 +808,7 @@ class TidyCoreGUI(QMainWindow):
 
         show_action.triggered.connect(self.show_window)
         update_action.triggered.connect(lambda: update_manager.check_for_updates(silent=False))
-        quit_action.triggered.connect(self.app.quit)
+        quit_action.triggered.connect(self._exit_application)  # FIXED: Use proper exit method
 
         menu.addAction(show_action)
         menu.addAction(update_action)
@@ -1019,8 +825,8 @@ class TidyCoreGUI(QMainWindow):
 
     def closeEvent(self, event):
         """Handle the window close event."""
-        if hasattr(self, 'engine') and self.engine:
-            self.engine.stop()
+        # FIXED: Don't stop engine when just hiding to tray
+        # Only stop engine when force exiting
         
         # Hide to tray instead of closing if not explicitly exiting
         if not getattr(self, '_force_exit', False):
@@ -1035,15 +841,46 @@ class TidyCoreGUI(QMainWindow):
                     2000
                 )
         else:
+            # Only stop engine when force exiting
+            if hasattr(self, 'engine') and self.engine:
+                self.engine.stop()
             event.accept()
 
     def _exit_application(self):
         """Exit the application completely."""
+        self.logger.info("User requested application exit.")
         self._force_exit = True
+        
+        # FIXED: Set shutdown flag to prevent restart flow
+        import main
+        main.shutting_down = True
         
         # Stop the engine
         if hasattr(self, 'engine') and self.engine:
+            self.logger.info("Stopping engine...")
             self.engine.stop()
         
         # Close the application
+        self.logger.info("Closing application...")
         QApplication.quit()
+
+    def handle_config_change(self):
+        """Handle configuration changes - reload engine configuration."""
+        self.logger.info("Configuration changed - reloading engine config")
+        
+        try:
+            # Tell the engine to reload its configuration
+            if hasattr(self, 'engine') and self.engine:
+                from .config_manager import load_config
+                new_config = load_config()
+                
+                # Update the engine's configuration
+                self.engine.reload_config(new_config)
+                self.logger.info("Engine configuration reloaded successfully")
+            else:
+                self.logger.warning("No engine available to reload config")
+                
+        except Exception as e:
+            self.logger.error(f"Error reloading engine config: {e}")
+            import traceback
+            traceback.print_exc()

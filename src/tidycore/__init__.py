@@ -1,3 +1,6 @@
 # tidycore/__init__.py
 
-__version__ = "2.0.0"
+"""
+TidyCore - Automated File Organization Tool
+"""
+__version__ = "2.0.1"

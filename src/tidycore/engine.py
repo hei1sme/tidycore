@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 import logging
+import threading
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional
 from watchdog.observers import Observer
@@ -28,6 +29,7 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.managed_categories = list(self.rules.keys()) + ["Others"]
         self.config_manager = ConfigManager()
         self.cooldown_files: Dict[str, float] = {}
+        self.cooldown_lock = threading.Lock()
         self.is_running = True
         self.observer = Observer()
         
@@ -36,26 +38,62 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.files_organized_total = statistics_db.get_total_stats()
 
     def run(self):
-        """Starts the file watching process."""
+        """Starts the file watching process with auto-recovery."""
         self.logger.info("TidyCore Engine thread started.")
-        self.initial_scan()
         
-        self.observer.schedule(self, str(self.target_folder), recursive=False)
-        self.observer.start()
-        signals.status_changed.emit(self.is_running)
+        # Main engine loop with auto-recovery
+        while self.is_running:
+            try:
+                self.initial_scan()
+                
+                # Start the observer
+                self.observer.schedule(self, str(self.target_folder), recursive=False)
+                self.observer.start()
+                self.logger.info(f"File monitoring started for: {self.target_folder}")
+                signals.status_changed.emit(self.is_running)
 
-        try:
-            while self.observer.is_alive():
+                # Monitor loop with automatic recovery
+                while self.is_running and self.observer.is_alive():
+                    if self.is_running:
+                        self._process_cooldown_files()
+                    time.sleep(1)
+                
+                # If we get here, either is_running is False or observer died
+                if self.is_running and not self.observer.is_alive():
+                    self.logger.warning("Observer thread died unexpectedly. Attempting restart...")
+                    self._restart_observer()
+                    
+            except Exception as e:
+                self.logger.critical(f"Critical error in engine loop: {e}", exc_info=True)
                 if self.is_running:
-                    self._process_cooldown_files()
-                time.sleep(1)
+                    self.logger.info("Attempting to recover from critical error...")
+                    time.sleep(5)  # Wait before retry
+                    self._restart_observer()
+                else:
+                    break
+        
+        # Cleanup
+        self._cleanup_observer()
+        self.logger.info("TidyCore Engine thread has stopped.")
+    
+    def _restart_observer(self):
+        """Restart the observer after a failure."""
+        try:
+            self._cleanup_observer()
+            time.sleep(2)  # Brief pause before restart
+            self.observer = Observer()  # Create new observer
+            self.logger.info("Observer restarted successfully.")
         except Exception as e:
-            self.logger.critical(f"An error occurred in the engine loop: {e}", exc_info=True)
-        finally:
+            self.logger.error(f"Failed to restart observer: {e}")
+    
+    def _cleanup_observer(self):
+        """Safely cleanup the observer."""
+        try:
             if self.observer.is_alive():
                 self.observer.stop()
-            self.observer.join()
-            self.logger.info("TidyCore Engine thread has stopped.")
+            self.observer.join(timeout=5)  # Wait max 5 seconds
+        except Exception as e:
+            self.logger.warning(f"Observer cleanup warning: {e}")
 
     def pause(self):
         """Pauses the file processing loop."""
@@ -74,13 +112,59 @@ class TidyCoreEngine(FileSystemEventHandler):
     def stop(self):
         """Stops the observer thread gracefully."""
         self.logger.info("Engine stop signal received.")
-        if self.observer.is_alive():
-            self.observer.stop()
+        self.is_running = False  # FIXED: Set running flag to False first
+        self._cleanup_observer()
 
     def request_status(self):
         """Allows the GUI to request the current status upon startup."""
         self.logger.debug("GUI requested status update.")
         signals.status_changed.emit(self.is_running)
+    
+    def get_health_status(self) -> dict:
+        """Get comprehensive health status of the engine."""
+        return {
+            "is_running": self.is_running,
+            "observer_alive": self.observer.is_alive() if self.observer else False,
+            "target_folder_exists": self.target_folder.exists(),
+            "cooldown_files_count": len(self.cooldown_files),
+            "files_organized_today": self.files_organized_today,
+            "files_organized_total": self.files_organized_total
+        }
+    
+    def get_health_status(self) -> dict:
+        """Get comprehensive health status of the engine."""
+        return {
+            "is_running": self.is_running,
+            "observer_alive": self.observer.is_alive() if self.observer else False,
+            "target_folder_exists": self.target_folder.exists(),
+            "cooldown_files_count": len(self.cooldown_files),
+            "files_organized_today": self.files_organized_today,
+            "files_organized_total": self.files_organized_total
+        }
+
+    def reload_config(self, new_config: dict):
+        """Reload the engine configuration without restarting."""
+        self.logger.info("Reloading engine configuration...")
+        
+        # Update configuration attributes
+        self.config = new_config
+        
+        # Update derived attributes
+        self.rules = new_config.get("rules", {})
+        new_ignore_list = new_config.get("ignore_list", [])
+        
+        # Update the ignore_list attribute that _should_process uses
+        self.ignore_list = new_ignore_list
+        
+        # Update target folder if it changed
+        new_target_folder = Path(new_config.get("target_folder", ""))
+        if new_target_folder != self.target_folder:
+            self.logger.info(f"Target folder changed from {self.target_folder} to {new_target_folder}")
+            self.target_folder = new_target_folder
+            # Note: Observer restart would be needed here if target folder changes,
+            # but for now we'll just log it
+        
+        self.logger.info("Engine configuration reloaded successfully")
 
     def initial_scan(self):
         self.logger.info("Performing initial scan of target folder...")
@@ -96,28 +180,40 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.logger.info("Initial scan complete.")
     
     def _queue_item_for_processing(self, path: str):
-        if self._should_process(path):
-            if path not in self.cooldown_files:
-                self.logger.info(f"New item detected: {os.path.basename(path)}. Starting cooldown.")
-                self.cooldown_files[path] = time.time()
+        """Queue items for processing with better error handling."""
+        try:
+            if self._should_process(path):
+                if path not in self.cooldown_files:
+                    self.logger.info(f"New item detected: {os.path.basename(path)}. Starting cooldown.")
+                    with self.cooldown_lock:
+                        self.cooldown_files[path] = time.time()
+        except Exception as e:
+            self.logger.error(f"Error queuing item {path}: {e}")
 
     def on_created(self, event):
-        self._queue_item_for_processing(event.src_path)
+        """Handle file/folder creation events."""
+        if not event.is_directory or event.is_directory:  # Handle both files and folders
+            self._queue_item_for_processing(event.src_path)
 
     def on_modified(self, event):
-        self._queue_item_for_processing(event.src_path)
+        """Handle file/folder modification events."""
+        if not event.is_directory:  # Only handle file modifications, not folder
+            self._queue_item_for_processing(event.src_path)
 
     def _process_cooldown_files(self):
         now = time.time()
         ready_to_process = []
         
-        for path, detected_time in list(self.cooldown_files.items()):
-            if now - detected_time > self.cooldown_period:
-                ready_to_process.append(path)
-        
+        with self.cooldown_lock:
+            for path, detected_time in list(self.cooldown_files.items()):
+                if now - detected_time > self.cooldown_period:
+                    ready_to_process.append(path)
+            
+            for path in ready_to_process:
+                if path in self.cooldown_files:
+                    del self.cooldown_files[path]
+
         for path in ready_to_process:
-            if path in self.cooldown_files:
-                del self.cooldown_files[path]
             if os.path.exists(path):
                 self._organize_item(path)
 

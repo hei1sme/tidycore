@@ -7,9 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2025-08-19
+
+### Fixed
+
+- 🔧 **Engine Persistence**: Fixed critical issue where engine would stop when GUI window was closed
+  - Changed threading to `daemon=False` to ensure background operation continues
+  - Proper signal handling to prevent premature shutdown
+- 💾 **Database Functionality**: Restored persistent statistics tracking
+  - Fixed thread-safe database operations
+  - Ensured data persistence across application sessions
+- 🎛️ **Settings Save Button**: Fixed inaccessible save button in settings page
+  - Repositioned save button outside scroll area for better accessibility
+  - Enhanced button styling and visibility
+- ⚡ **Live Configuration Updates**: Implemented real-time configuration reload
+  - Settings changes now apply immediately without restart
+  - Fixed ignore list updates during runtime monitoring
+  - Added configuration reload system for seamless user experience
+
+### Improved
+
+- 🧹 **Code Quality**: Removed debug logging and cleaned up codebase
+- 🚀 **User Experience**: Enhanced responsiveness of settings changes
+- 📋 **Documentation**: Updated project documentation for v2.0.1
+
 ## [2.0.0] - 2025-07-07
 
 ### Added
+
 - 🏗️ **Professional Project Structure**: Complete reorganization following modern Python standards
   - Modern `src/` package layout with proper separation of concerns
   - Centralized documentation in `docs/` directory

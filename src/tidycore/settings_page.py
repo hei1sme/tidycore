@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, QLineEdit, 
     QPushButton, QListWidget, QListWidgetItem, QFileDialog, QMessageBox,
     QGroupBox, QRadioButton, QTreeWidget, QTreeWidgetItem, QMenu,
-    QInputDialog,
+    QInputDialog, QScrollArea,
     # --- NEW: Add QCheckBox ---
     QCheckBox
 )
@@ -39,7 +39,18 @@ class SettingsPage(QWidget):
 
     def _build_ui(self):
         """Creates the static UI elements once."""
-        page_layout = QVBoxLayout(self)
+        # FIXED: Create main layout for the page
+        main_layout = QVBoxLayout(self)
+        
+        # Create scroll area to ensure save button is always accessible
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        
+        # Create the actual content widget
+        content_widget = QWidget()
+        page_layout = QVBoxLayout(content_widget)
         
         # We will create a two-column layout for settings
         main_grid = QGridLayout()
@@ -62,13 +73,47 @@ class SettingsPage(QWidget):
         
         page_layout.addLayout(main_grid)
         
-        # Save Button
+        # FIXED: Set up the scroll area BEFORE adding save button
+        scroll_area.setWidget(content_widget)
+        main_layout.addWidget(scroll_area)
+        
+        # Place Save Button OUTSIDE scroll area so it's always visible
         save_button_layout = QHBoxLayout()
         save_button_layout.addStretch()
-        save_button = QPushButton("Save Settings")
+        save_button = QPushButton("💾 Save Settings")  # Added icon for better visibility
         save_button.clicked.connect(self._save_settings)
+        # Explicitly ensure button is visible and has proper size
+        save_button.setVisible(True)
+        save_button.setMinimumHeight(45)  # Slightly taller
+        save_button.setMinimumWidth(150)  # Wider for better accessibility
+        # Add some extra styling to make it stand out
+        save_button.setStyleSheet("""
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
+                color: #23243a;
+                border: 2px solid #7aa2f7;
+                border-radius: 8px;
+                font-size: 16px;
+                font-weight: bold;
+                padding: 12px 24px;
+                margin: 10px 0;
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bb9af7, stop:1 #7aa2f7);
+                color: #fff;
+                border: 2px solid #bb9af7;
+            }
+            QPushButton:pressed {
+                background: #414868;
+                color: #fff;
+                border: 2px solid #414868;
+            }
+        """)
         save_button_layout.addWidget(save_button)
-        page_layout.addLayout(save_button_layout)
+        save_button_layout.addStretch()  # Center the button
+        
+        # Add save button layout to main layout (outside scroll area)
+        main_layout.addLayout(save_button_layout)
 
     def refresh_settings(self):
         """
@@ -311,6 +356,7 @@ class SettingsPage(QWidget):
     # --- NEW, ROBUST SAVING LOGIC ---
     def _save_settings(self):
         """Gathers all data from UI, saves to config, and signals the change."""
+        
         # Save target folder
         self.current_config["target_folder"] = self.folder_path_edit.text()
         
