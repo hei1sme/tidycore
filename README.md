@@ -19,6 +19,19 @@ TidyCore is a desktop application designed to bring order to your most cluttered
 
 Built with a modern user interface and a robust backend engine, TidyCore is the "set it and forget it" solution for maintaining a clean digital workspace.
 
+## 🔧 What's New in v2.0.1
+
+### **Critical Bug Fixes**
+- **🔧 Engine Persistence**: Fixed critical issue where engine would stop when GUI window was closed - now properly runs in background
+- **💾 Database Functionality**: Restored persistent statistics tracking with thread-safe operations
+- **🎛️ Settings Save Button**: Fixed inaccessible save button in settings page - repositioned for better accessibility
+- **⚡ Live Configuration Updates**: Implemented real-time configuration reload - settings changes now apply immediately without restart
+
+### **Enhanced User Experience**
+- **🧹 Code Quality**: Removed debug logging for cleaner production experience
+- **🚀 Responsiveness**: Enhanced settings change responsiveness and UI interactions
+- **📋 Documentation**: Updated and cleaned up project documentation
+
 ## 🎉 What's New in v2.0.0
 
 ### 🏗️ **Professional Project Structure**
@@ -61,7 +74,7 @@ Built with a modern user interface and a robust backend engine, TidyCore is the 
 TidyCore is a portable application - no complex installation required!
 
 1. **Download the latest release:** Go to the [**TidyCore Releases Page**](https://github.com/hei1sme/TidyCore/releases) on GitHub.
-2. Download the `TidyCore-v2.0.0-Windows.zip` file from the latest release.
+2. Download the `TidyCore-v2.0.1-Windows.zip` file from the latest release.
 3. **Extract the archive:** Right-click the downloaded `.zip` file and select "Extract All..." to a location of your choice (e.g., your Desktop or `C:\Program Files`).
 4. **Run the application:** Open the extracted `TidyCore` folder and double-click `TidyCore.exe`.
 
