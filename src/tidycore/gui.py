@@ -31,118 +31,264 @@ except ImportError as e:
     update_manager = None
 from .update_dialog import UpdateDialog, UpdateNotificationWidget
 STYLESHEET = """
-/* ---- Main Window ---- */
+/* ---- Modern Professional Theme ---- */
 #MainWindow {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #1a1b26);
-    font-family: 'Segoe UI', 'Inter', 'Roboto', Arial, sans-serif;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #0f0f23, stop:0.3 #1a1b36, stop:0.7 #24273a, stop:1 #2a2d47);
+    font-family: 'Segoe UI Variable', 'SF Pro Display', 'Inter', 'Roboto', sans-serif;
+    color: #e2e8f0;
 }
 #Sidebar {
-    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #31355a, stop:1 #23243a);
-    border-right: 1px solid #3b3f51;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 #1e293b, stop:0.5 #334155, stop:1 #1e293b);
+    border-right: 2px solid #475569;
+    border-radius: 0px 12px 12px 0px;
+    margin: 8px 0px 8px 8px;
 }
 #Sidebar #LogoLabel {
-    margin-bottom: 22px;
-    padding: 12px 0 12px 0;
+    color: #f1f5f9;
+    font-size: 26px;
+    font-weight: 700;
     text-align: center;
+    padding: 20px 0px;
+    margin: 12px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #3b82f6, stop:1 #8b5cf6);
+    border-radius: 12px;
+    border: 1px solid #60a5fa;
 }
 #Sidebar QPushButton {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #31355a);
-    border: none;
-    color: #a9b1d6;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #334155, stop:1 #475569);
+    border: 1px solid transparent;
+    color: #cbd5e1;
     text-align: left;
-    padding: 18px 28px;
-    border-radius: 18px;
-    font-size: 18px;
-    margin-bottom: 12px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    margin: 6px 12px;
 }
 #Sidebar QPushButton:hover {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
-    color: #23243a;
-    font-weight: bold;
-    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #3b82f6, stop:1 #6366f1);
+    color: #ffffff;
+    border: 1px solid #60a5fa;
 }
 #Sidebar QPushButton:checked {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #bb9af7);
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #1d4ed8, stop:1 #7c3aed);
     color: #ffffff;
-    font-weight: bold;
-    /* box-shadow: 0 6px 24px 0 rgba(122,162,247,0.22); */
-    border: 1.5px solid #7aa2f7;
-}
-/* Modern global QPushButton style */
-QPushButton {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
-    color: #23243a;
-    border: none;
-    border-radius: 14px;
-    font-size: 17px;
+    border: 1px solid #3b82f6;
     font-weight: 600;
-    padding: 12px 28px;
-    margin: 8px 0;
-    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
+}
+/* Modern professional QPushButton style */
+QPushButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #3b82f6, stop:1 #6366f1);
+    color: #ffffff;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 12px 24px;
+    margin: 6px 2px;
+    min-height: 20px;
 }
 /* Specific styling for compact buttons */
 QPushButton[objectName="pause_resume_button"] {
-    font-size: 14px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #f59e0b, stop:1 #f97316);
+    font-size: 13px;
     padding: 8px 16px;
-    margin: 4px 0;
+    border-radius: 8px;
+    font-weight: 600;
 }
 QPushButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bb9af7, stop:1 #7aa2f7);
-    color: #fff;
-    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #2563eb, stop:1 #4f46e5);
+}
+QPushButton[objectName="pause_resume_button"]:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #d97706, stop:1 #ea580c);
 }
 QPushButton:pressed {
-    background: #414868;
-    color: #fff;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #1d4ed8, stop:1 #4338ca);
 }
 #ContentArea {
     padding: 28px 28px 18px 28px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #f8fafc, stop:1 #f1f5f9);
+    border-radius: 16px;
+    margin: 8px;
+    border: 1px solid #e2e8f0;
 }
 QGroupBox {
-    background-color: rgba(35,36,58,0.96);
-    border-radius: 24px;
-    border: 1.5px solid #363a4f;
-    margin-top: 26px;
-    padding-top: 26px;
-    font-size: 18px;
-    font-weight: bold;
-    color: #c0c5ea;
+    font-weight: 600;
+    font-size: 16px;
+    color: #1e293b;
+    border: 2px solid #cbd5e1;
+    border-radius: 12px;
+    margin-top: 16px;
+    padding-top: 12px;
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, 
+        stop:0 #ffffff, stop:1 #f8fafc);
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 0 20px;
-    left: 28px;
-    font-size: 20px;
-    color: #7aa2f7;
+    left: 16px;
+    padding: 6px 12px;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #3b82f6, stop:1 #6366f1);
+    color: #ffffff;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
 }
 QLabel {
-    color: #a9b1d6;
-    font-size: 17px;
-    font-weight: normal;
+    color: #1e293b;
+    font-size: 14px;
 }
 QLabel#StatusLabel {
-    font-size: 30px;
-    font-weight: bold;
-    color: #9ece6a;
+    color: #059669;
+    font-size: 24px;
+    font-weight: 700;
     letter-spacing: 1px;
 }
 QLabel#StatusLabel[paused="true"] {
-    color: #f7768e;
+    color: #dc2626;
 }
 QTextEdit {
-    background-color: #181926;
-    border: 1.5px solid #363a4f;
-    border-radius: 16px;
-    color: #a9b1d6;
-    font-size: 16px;
-    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 12px;
+    color: #1e293b;
+    font-size: 14px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    selection-background-color: #3b82f6;
 }
-"""
-"""
+QTextEdit:focus {
+    border: 2px solid #3b82f6;
+}
+
+/* ---- Modern Input Fields ---- */
+QLineEdit {
+    background: #ffffff;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #1e293b;
+    selection-background-color: #3b82f6;
+}
+
+QLineEdit:focus {
+    border: 2px solid #3b82f6;
+    background: #fefffe;
+}
+
+/* ---- Professional List Widgets ---- */
+QListWidget {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 8px;
+    color: #1e293b;
+    font-size: 14px;
+}
+
+QListWidget::item {
+    padding: 8px;
+    border-radius: 6px;
+    margin: 2px 0px;
+}
+
+QListWidget::item:selected {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #3b82f6, stop:1 #6366f1);
+    color: #ffffff;
+}
+
+QListWidget::item:hover {
+    background: #f1f5f9;
+}
+
+/* ---- Enhanced Tree Widget ---- */
+QTreeWidget {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    color: #1e293b;
+    font-size: 14px;
+    alternate-background-color: #f8fafc;
+}
+
+QTreeWidget::item {
+    padding: 6px;
+    border-radius: 4px;
+}
+
+QTreeWidget::item:selected {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, 
+        stop:0 #3b82f6, stop:1 #6366f1);
+    color: #ffffff;
+}
+
+QTreeWidget::item:hover {
+    background: #e0f2fe;
+}
+
+/* ---- Modern Radio Buttons ---- */
+QRadioButton {
+    color: #1e293b;
+    font-size: 14px;
+    font-weight: 500;
+    spacing: 8px;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #cbd5e1;
+    border-radius: 10px;
+    background: #ffffff;
+}
+
+QRadioButton::indicator:checked {
+    background: qradial-gradient(cx:0.5, cy:0.5, radius:0.4, 
+        stop:0 #3b82f6, stop:1 #ffffff);
+    border: 2px solid #3b82f6;
+}
+
+QRadioButton::indicator:hover {
+    border: 2px solid #60a5fa;
+}
+
+/* ---- Modern Check Boxes ---- */
+QCheckBox {
+    color: #1e293b;
+    font-size: 14px;
+    font-weight: 500;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #cbd5e1;
+    border-radius: 4px;
+    background: #ffffff;
+}
+
+QCheckBox::indicator:checked {
+    background: #3b82f6;
+    border: 2px solid #3b82f6;
+}
+
+QCheckBox::indicator:hover {
+    border: 2px solid #60a5fa;
 }
 """
 
