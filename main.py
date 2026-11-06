@@ -44,12 +44,18 @@ def main(argv=None) -> int:
         return 1
     engine = None
     try:
-        config = load_config()
+        startup_warnings = []
+        config = load_config(on_target_error=startup_warnings.append)
         if args.test_mode and config['target_folder']:
             Path(config['target_folder']).resolve().relative_to(data_root())
         database = StatisticsDatabase()
         engine = TidyCoreEngine(config, database)
         window = TidyCoreGUI(engine, app)
+        for warning in startup_warnings:
+            logger.warning(warning)
+            window.add_log_message('[ERROR] ' + warning)
+            window.select_page(1)
+            window.statusBar().showMessage(warning)
         instance_server = InstanceServer(server_name(data_root()), window)
         app.aboutToQuit.connect(engine.stop)
         window.show()

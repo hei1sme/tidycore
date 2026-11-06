@@ -1,4 +1,12 @@
-# Windows validation — v2.2.0
+# Windows validation — v2.2.1
+
+The startup patch adds three regression cases for saved targets overlapping the
+downloaded executable, resources and state directory. Each constructs the Qt
+window offscreen, verifies Settings remains accessible while watching is disabled,
+checks persisted history and byte-for-byte settings preservation, and confirms
+unsafe saves and unrelated invalid settings remain rejected. Interactive desktop
+inspection is deferred at the user's request; the v2.2.0 inspection below remains
+the visual baseline.
 
 Validation uses Python 3.12.10, PySide6 6.9.1, watchdog 6.0.0, SQLite and a
 project-local native Windows `.venv`. PyInstaller 6.14.1 / hooks 2025.5 and

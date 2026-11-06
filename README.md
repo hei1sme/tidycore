@@ -4,7 +4,7 @@
   <p>A place for every file.</p>
   <p>A native Windows file organizer with a Fluent-inspired workspace,<br>clear rules, persistent history and moves you can undo.</p>
 
-  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.2.0) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
+  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.2.1) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
 </div>
 
 ![TidyCore Activity workspace](assets/screenshots/activity.png)
@@ -30,7 +30,7 @@ with a record of what moved and where it went.
 
 ## Get started
 
-1. Download **TidyCore-v2.2.0-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
+1. Download **TidyCore-v2.2.1-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
 2. Extract it and run **TidyCore.exe**. No Python installation is needed.
 3. Open **Settings → General**, choose a folder, review the rules and save.
 4. Return to **Activity** and select **Start watching**.
@@ -39,6 +39,11 @@ First launch is **paused with no folder selected**. Existing files in the select
 folder are included after the stability wait. Folders are ignored by default;
 opt into content-based categorization or moving folders to Others when wanted.
 Keep the EXE outside the folder you intend to organize.
+
+If an update is downloaded into your saved watched folder, v2.2.1 opens Settings
+with watching paused and the target temporarily cleared. Move the app outside
+that folder, select the folder again and save. The original settings file and
+history are retained until you explicitly save settings.
 
 The executable is unsigned. Checksums are included with the release. Updates are
 manual downloads; TidyCore does not silently check, download or replace itself.

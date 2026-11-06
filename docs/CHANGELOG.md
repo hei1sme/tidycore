@@ -1,3 +1,8 @@
+# v2.2.1 — Startup recovery
+
+- Open Settings paused when a saved target contains the downloaded application or state directory, instead of failing before the UI opens.
+- Keep original settings and history; retain strict validation when saving and show recovery instructions in Settings.
+
 # v2.2.0 — Fluent workspace and reliable organization
 
 - Remade the native Windows interface with Fluent-inspired navigation, typography, system glyphs, layered surfaces and state badges.

@@ -56,6 +56,12 @@ class SettingsPage(QWidget):
         general_layout = QVBoxLayout(general_page)
         general_layout.setContentsMargins(0, 12, 0, 0)
         general_layout.setSpacing(12)
+        self.target_warning = QLabel()
+        self.target_warning.setTextFormat(Qt.TextFormat.PlainText)
+        self.target_warning.setWordWrap(True)
+        self.target_warning.setObjectName('Caption')
+        self.target_warning.hide()
+        general_layout.addWidget(self.target_warning)
         general_layout.addWidget(self._create_general_settings_section())
         general_layout.addWidget(self._create_folder_strategy_section())
         note = QLabel('Files wait for a quiet period before moving. Partial downloads and links stay in place. Changing the watched folder starts paused.')
@@ -93,7 +99,10 @@ class SettingsPage(QWidget):
         """
         Loads the latest config from disk and populates all UI controls.
         """
-        self.current_config = self.config_manager.load_config()
+        warnings = []
+        self.current_config = self.config_manager.load_config(on_target_error=warnings.append)
+        self.target_warning.setText('\n'.join(warnings))
+        self.target_warning.setVisible(bool(warnings))
         
         # Populate target folder
         self.folder_path_edit.setText(self.current_config.get("target_folder", ""))

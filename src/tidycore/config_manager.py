@@ -14,6 +14,10 @@ CONFIG_PATH = None  # Explicit override for integration tests/import tools.
 PARTIAL_EXTENSIONS = {'.crdownload', '.part', '.tmp', '.download', '.partial', '.!ut'}
 
 
+class UnsafeWatchTarget(ValueError):
+    """An existing target overlaps application files or durable state."""
+
+
 def config_path() -> Path:
     return Path(CONFIG_PATH or data_path('config.json'))
 
@@ -45,7 +49,7 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
             protected_roots.append(Path(sys.executable).parent)
         for protected in protected_roots:
             if p.resolve() == protected or protected.is_relative_to(p.resolve()):
-                raise ValueError('The watched folder cannot contain TidyCore application files or its state directory.')
+                raise UnsafeWatchTarget('The watched folder cannot contain TidyCore application files or its state directory.')
         if isolated_mode():
             try:
                 p.resolve().relative_to(data_root())
@@ -104,14 +108,28 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def load_config() -> dict[str, Any]:
+def load_config(*, on_target_error=None) -> dict[str, Any]:
     path = config_path()
     if not path.exists():
         defaults = json.loads(Path(get_absolute_path('config/config.json')).read_text(encoding='utf-8'))
         defaults['target_folder'] = ''
         defaults['start_paused'] = True
         save_config(defaults)
-    return validate_config(json.loads(path.read_text(encoding='utf-8')))
+    stored = json.loads(path.read_text(encoding='utf-8'))
+    try:
+        return validate_config(stored)
+    except UnsafeWatchTarget:
+        # Downloading a new EXE into the watched folder must not lock users out
+        # of Settings. Validate everything else and retain the original on disk.
+        recovered = copy.deepcopy(stored)
+        recovered.update(target_folder='', start_paused=True)
+        recovered = validate_config(recovered)
+        if on_target_error:
+            on_target_error(
+                'Watching is paused because the saved folder contains TidyCore application files '
+                'or its state directory. Move TidyCore outside the folder you want to organize, '
+                'then choose that folder in Settings and save. Your saved settings and history were retained.')
+        return recovered
 
 
 def save_config(config_data: dict[str, Any]) -> None:
