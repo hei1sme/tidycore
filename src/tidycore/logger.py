@@ -1,9 +1,9 @@
 # tidycore/logger.py
 import logging
 import sys
-from .utils import get_absolute_path # Import the new function
+from .utils import data_path
+from logging.handlers import RotatingFileHandler
 
-LOG_FILE_PATH = get_absolute_path("tidycore.log") # Define the path
 
 def setup_logger() -> logging.Logger:
     """Sets up a standardized logger for the application."""
@@ -11,6 +11,8 @@ def setup_logger() -> logging.Logger:
     logger.setLevel(logging.INFO)
 
     if logger.hasHandlers():
+        for handler in logger.handlers:
+            handler.close()
         logger.handlers.clear()
 
     # Create a handler for console output (stdout)
@@ -18,7 +20,7 @@ def setup_logger() -> logging.Logger:
     stream_handler.setLevel(logging.INFO)
     
     # Create a handler for writing to a log file
-    file_handler = logging.FileHandler(LOG_FILE_PATH, mode='a', encoding='utf-8')
+    file_handler = RotatingFileHandler(data_path('tidycore.log'), maxBytes=2_000_000, backupCount=3, encoding='utf-8')
     file_handler.setLevel(logging.INFO)
 
     formatter = logging.Formatter(

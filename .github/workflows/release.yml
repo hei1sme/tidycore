@@ -1,86 +1,45 @@
-name: Build and Release TidyCore
+name: Windows validation
 
 on:
   push:
-    tags:
-      - 'v*'  # Triggers on version tags like v1.0.0
-  workflow_dispatch:  # Allows manual triggering
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-windows:
+  test:
     runs-on: windows-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install pyinstaller
-        
-    - name: Build executable
-      run: |
-        python scripts/build_release.py
-        
-    - name: Create release archive
-      run: |
-        Compress-Archive -Path release/* -DestinationPath TidyCore-${{ github.ref_name }}-Windows.zip
-        
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: TidyCore-Windows
-        path: TidyCore-${{ github.ref_name }}-Windows.zip
-        
-  create-release:
-    needs: build-windows
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: TidyCore-Windows
-        
-    - name: Generate release notes
-      id: release_notes
-      run: |
-        # Extract version from tag
-        VERSION=${GITHUB_REF#refs/tags/}
-        
-        # Create release notes from template
-        if [ -f "RELEASE_NOTES_TEMPLATE.md" ]; then
-          sed "s/{version}/$VERSION/g" RELEASE_NOTES_TEMPLATE.md > release_notes.md
-          sed -i "s/{previous_version}/v1.0.0/g" release_notes.md
-        else
-          echo "## TidyCore $VERSION" > release_notes.md
-          echo "" >> release_notes.md
-          echo "### 🎉 What's New" >> release_notes.md
-          echo "- Latest improvements and bug fixes" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### 📦 Installation" >> release_notes.md
-          echo "1. Download the Windows executable below" >> release_notes.md
-          echo "2. Extract and run TidyCore.exe" >> release_notes.md
-        fi
-        
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        files: TidyCore-${{ github.ref_name }}-Windows.zip
-        body_path: release_notes.md
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12.10'
+          cache: pip
+      - name: Create project environment
+        shell: pwsh
+        run: |
+          python -m venv .venv
+          .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+      - name: Verify isolated Windows behavior
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -m pip check
+          .\.venv\Scripts\python.exe -m pytest -q
+      - name: Build portable executable
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe scripts/build_release.py
+      - name: Save manually requested build
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TidyCore-Windows
+          path: release/*.zip
+          if-no-files-found: error

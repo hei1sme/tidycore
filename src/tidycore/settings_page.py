@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QGroupBox, QRadioButton, QTreeWidget, QTreeWidgetItem, QMenu,
     QInputDialog, QScrollArea,
     # --- NEW: Add QCheckBox ---
-    QCheckBox
+    QCheckBox, QSpinBox, QTabWidget
 )
 from PySide6.QtGui import QAction
 from PySide6.QtCore import Qt
@@ -14,6 +14,8 @@ from .config_manager import ConfigManager
 from .signals import signals
 # --- NEW: Import the startup manager instance ---
 from .startup_manager import startup_manager
+from .utils import isolated_mode, data_root
+from pathlib import Path
 
 class SettingsPage(QWidget):
     """The main settings page for TidyCore."""
@@ -38,82 +40,54 @@ class SettingsPage(QWidget):
         signals.config_changed.connect(self.refresh_settings)
 
     def _build_ui(self):
-        """Creates the static UI elements once."""
-        # FIXED: Create main layout for the page
         main_layout = QVBoxLayout(self)
-        
-        # Create scroll area to ensure save button is always accessible
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        
-        # Create the actual content widget
-        content_widget = QWidget()
-        page_layout = QVBoxLayout(content_widget)
-        
-        # We will create a two-column layout for settings
-        main_grid = QGridLayout()
-        
-        # Left column
-        # --- General Settings Box ---
-        general_box = self._create_general_settings_section()
-        folder_strategy_box = self._create_folder_strategy_section()
-        ignore_list_box = self._create_ignore_list_section()
-        
-        # Right column (the new Rules Editor)
-        rules_editor_box = self._create_rules_editor_section()
-
-        main_grid.addWidget(general_box, 0, 0) # Add the new box
-        main_grid.addWidget(folder_strategy_box, 1, 0)
-        main_grid.addWidget(ignore_list_box, 2, 0)
-        main_grid.addWidget(rules_editor_box, 0, 1, 3, 1) # Span all 3 rows
-        main_grid.setColumnStretch(0, 1)
-        main_grid.setColumnStretch(1, 2) # Make the rules editor wider
-        
-        page_layout.addLayout(main_grid)
-        
-        # FIXED: Set up the scroll area BEFORE adding save button
-        scroll_area.setWidget(content_widget)
-        main_layout.addWidget(scroll_area)
-        
-        # Place Save Button OUTSIDE scroll area so it's always visible
-        save_button_layout = QHBoxLayout()
-        save_button_layout.addStretch()
-        save_button = QPushButton("💾 Save Settings")  # Added icon for better visibility
-        save_button.clicked.connect(self._save_settings)
-        # Explicitly ensure button is visible and has proper size
-        save_button.setVisible(True)
-        save_button.setMinimumHeight(45)  # Slightly taller
-        save_button.setMinimumWidth(150)  # Wider for better accessibility
-        # Add some extra styling to make it stand out
-        save_button.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
-                color: #23243a;
-                border: 2px solid #7aa2f7;
-                border-radius: 8px;
-                font-size: 16px;
-                font-weight: bold;
-                padding: 12px 24px;
-                margin: 10px 0;
-            }
-            QPushButton:hover {
-                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bb9af7, stop:1 #7aa2f7);
-                color: #fff;
-                border: 2px solid #bb9af7;
-            }
-            QPushButton:pressed {
-                background: #414868;
-                color: #fff;
-                border: 2px solid #414868;
-            }
-        """)
-        save_button_layout.addWidget(save_button)
-        save_button_layout.addStretch()  # Center the button
-        
-        # Add save button layout to main layout (outside scroll area)
-        main_layout.addLayout(save_button_layout)
+        main_layout.setContentsMargins(28, 26, 28, 16)
+        main_layout.setSpacing(16)
+        title = QLabel('Settings')
+        title.setObjectName('Title')
+        main_layout.addWidget(title)
+        subtitle = QLabel('Choose what moves, and where it belongs.')
+        subtitle.setObjectName('Muted')
+        main_layout.addWidget(subtitle)
+        self.tabs = QTabWidget()
+        self.tabs.setDocumentMode(True)
+        self.tabs.setAccessibleName('Settings sections')
+        general_page = QWidget()
+        general_layout = QVBoxLayout(general_page)
+        general_layout.setContentsMargins(0, 12, 0, 0)
+        general_layout.setSpacing(12)
+        general_layout.addWidget(self._create_general_settings_section())
+        general_layout.addWidget(self._create_folder_strategy_section())
+        note = QLabel('Files wait for a quiet period before moving. Partial downloads and links stay in place. Changing the watched folder starts paused.')
+        note.setWordWrap(True)
+        note.setObjectName('Caption')
+        general_layout.addWidget(note)
+        general_layout.addStretch()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(general_page)
+        self.tabs.addTab(scroll, 'General')
+        rules_page = QWidget()
+        rules_layout = QVBoxLayout(rules_page)
+        rules_layout.setContentsMargins(0, 12, 0, 0)
+        rules_layout.addWidget(self._create_rules_editor_section())
+        self.tabs.addTab(rules_page, 'File type rules')
+        ignore_page = QWidget()
+        ignore_layout = QVBoxLayout(ignore_page)
+        ignore_layout.setContentsMargins(0, 12, 0, 0)
+        ignore_layout.addWidget(self._create_ignore_list_section())
+        self.tabs.addTab(ignore_page, 'Ignored items')
+        main_layout.addWidget(self.tabs, 1)
+        footer = QHBoxLayout()
+        self.save_feedback = QLabel('Changes apply when you save.')
+        self.save_feedback.setWordWrap(True)
+        self.save_feedback.setObjectName('Caption')
+        footer.addWidget(self.save_feedback, 1)
+        self.save_button = QPushButton('Sa&ve settings')
+        self.save_button.setObjectName('Primary')
+        self.save_button.clicked.connect(self._save_settings)
+        footer.addWidget(self.save_button)
+        main_layout.addLayout(footer)
 
     def refresh_settings(self):
         """
@@ -123,7 +97,11 @@ class SettingsPage(QWidget):
         
         # Populate target folder
         self.folder_path_edit.setText(self.current_config.get("target_folder", ""))
+        self.folder_path_edit.setToolTip(self.current_config.get("target_folder", ""))
+        self.folder_path_edit.setCursorPosition(0)
         
+        self.cooldown_spin.setValue(int(self.current_config.get('cooldown_period_seconds', 5)))
+
         # Populate folder handling strategy
         strategy = self.current_config.get("folder_handling_strategy", "smart_scan")
         if strategy == "move_to_others":
@@ -156,7 +134,10 @@ class SettingsPage(QWidget):
         target_folder_layout = QHBoxLayout()
         self.folder_path_edit = QLineEdit()
         self.folder_path_edit.setText(self.current_config.get("target_folder", ""))
-        self.folder_path_edit.setReadOnly(True)
+        self.folder_path_edit.setToolTip(self.current_config.get("target_folder", ""))
+        self.folder_path_edit.setCursorPosition(0)
+        self.folder_path_edit.setAccessibleName('Folder to organize')
+        self.folder_path_edit.setPlaceholderText('Choose a folder before starting')
         browse_button = QPushButton("Browse...")
         browse_button.clicked.connect(self._browse_for_folder)
         target_folder_layout.addWidget(self.folder_path_edit)
@@ -164,9 +145,22 @@ class SettingsPage(QWidget):
         
         # Startup checkbox part
         self.startup_checkbox = QCheckBox("Launch TidyCore when computer starts")
-        self.startup_checkbox.toggled.connect(self._handle_startup_toggle)
+        self.startup_checkbox.setEnabled(not isolated_mode())
+        if isolated_mode():
+            self.startup_checkbox.setToolTip('Startup integration is disabled in isolated test mode.')
         
         layout.addLayout(target_folder_layout)
+        cooldown_row = QHBoxLayout()
+        cooldown_label = QLabel('&Stability wait (seconds)')
+        self.cooldown_spin = QSpinBox()
+        self.cooldown_spin.setRange(1, 3600)
+        self.cooldown_spin.setMaximumWidth(140)
+        self.cooldown_spin.setAccessibleName('Stability wait in seconds')
+        cooldown_label.setBuddy(self.cooldown_spin)
+        cooldown_row.addWidget(cooldown_label)
+        cooldown_row.addWidget(self.cooldown_spin)
+        cooldown_row.addStretch()
+        layout.addLayout(cooldown_row)
         layout.addWidget(self.startup_checkbox)
         
         return box
@@ -176,27 +170,11 @@ class SettingsPage(QWidget):
         if folder_name:
             self.folder_path_edit.setText(folder_name)
 
-    # --- NEW METHOD to handle the checkbox logic ---
-    def _handle_startup_toggle(self, checked: bool):
-        # Don't show messages during initialization
-        if self._initializing:
-            return
-            
-        try:
-            if checked:
-                startup_manager.enable()
-                QMessageBox.information(self, "Startup Enabled", "TidyCore will now start automatically when you log in.")
-            else:
-                startup_manager.disable()
-                QMessageBox.information(self, "Startup Disabled", "TidyCore will no longer start automatically.")
-        except Exception as e:
-            QMessageBox.critical(self, "Error", f"Could not update startup settings:\n{e}")
-
     def _create_folder_strategy_section(self) -> QGroupBox:
         box = QGroupBox("Folder Handling Strategy")
         layout = QVBoxLayout(box)
         layout.setSpacing(10)
-        self.smart_scan_radio = QRadioButton("Smart Categorization (Default)")
+        self.smart_scan_radio = QRadioButton("Categorize by folder contents")
         self.smart_scan_radio.setToolTip("Scan inside unknown folders to determine the best category.")
         self.move_to_others_radio = QRadioButton("Move to 'Others' Folder")
         self.move_to_others_radio.setToolTip("Move any unknown folder directly into the 'Others' category without scanning.")
@@ -208,7 +186,7 @@ class SettingsPage(QWidget):
         return box
 
     def _create_rules_editor_section(self) -> QGroupBox:
-        box = QGroupBox("File Type Rules (Right-click to edit)")
+        box = QGroupBox("File type rules")
         layout = QVBoxLayout(box)
 
         self.rules_tree = QTreeWidget()
@@ -219,7 +197,7 @@ class SettingsPage(QWidget):
         self.rules_tree.customContextMenuRequested.connect(self._open_rules_context_menu)
 
         # --- NEW: A single button to add top-level categories ---
-        add_category_btn = QPushButton("Add New Main Category...")
+        add_category_btn = QPushButton("Add category…")
         add_category_btn.clicked.connect(self._add_top_level_category)
         
         button_layout = QHBoxLayout()
@@ -227,9 +205,41 @@ class SettingsPage(QWidget):
         button_layout.addWidget(add_category_btn)
 
         layout.addWidget(self.rules_tree)
+        editor_actions = QHBoxLayout()
+        add_ext = QPushButton('Add extension…')
+        self.rule_add_extension = add_ext
+        add_sub = QPushButton('Add subcategory…')
+        self.rule_add_subcategory = add_sub
+        remove = QPushButton('Remove')
+        self.rule_remove = remove
+        add_ext.clicked.connect(lambda: self._add_to_selected(False))
+        add_sub.clicked.connect(lambda: self._add_to_selected(True))
+        remove.clicked.connect(self._remove_selected_rule)
+        for button in (add_ext, add_sub, remove):
+            editor_actions.addWidget(button)
+        layout.addLayout(editor_actions)
+        self.rules_tree.itemSelectionChanged.connect(self._update_rule_actions)
+        self._update_rule_actions()
         layout.addLayout(button_layout)
         
         return box
+
+    def _update_rule_actions(self):
+        item = self.rules_tree.currentItem()
+        category = bool(item and not item.text(0).startswith('.'))
+        self.rule_add_extension.setEnabled(category)
+        self.rule_add_subcategory.setEnabled(category and item.parent() is None)
+        self.rule_remove.setEnabled(item is not None)
+
+    def _add_to_selected(self, subcategory):
+        item = self.rules_tree.currentItem()
+        if item and not item.text(0).startswith('.') and (not subcategory or item.parent() is None):
+            self._add_item(item, is_subcategory=subcategory, is_extension=not subcategory)
+
+    def _remove_selected_rule(self):
+        item = self.rules_tree.currentItem()
+        if item:
+            self._remove_item(item)
 
     def _open_rules_context_menu(self, position):
         menu = QMenu()
@@ -237,7 +247,7 @@ class SettingsPage(QWidget):
 
         if not selected_item:
             # Right-clicked on an empty area
-            add_top_action = QAction("Add New Main Category...", self)
+            add_top_action = QAction("Add category…", self)
             add_top_action.triggered.connect(self._add_top_level_category)
             menu.addAction(add_top_action)
         else:
@@ -256,6 +266,7 @@ class SettingsPage(QWidget):
                 add_ext_action = QAction("Add Extension...", self)
                 add_ext_action.triggered.connect(lambda: self._add_item(selected_item, is_extension=True))
                 
+                add_sub_cat_action.setEnabled(selected_item.parent() is None)
                 menu.addAction(add_sub_cat_action)
                 menu.addAction(add_ext_action)
 
@@ -358,7 +369,9 @@ class SettingsPage(QWidget):
         """Gathers all data from UI, saves to config, and signals the change."""
         
         # Save target folder
-        self.current_config["target_folder"] = self.folder_path_edit.text()
+        self.current_config['target_folder'] = self.folder_path_edit.text()
+        self.current_config['cooldown_period_seconds'] = self.cooldown_spin.value()
+        self.current_config['start_paused'] = True
         
         # Save folder handling strategy
         strategy = "smart_scan"
@@ -372,6 +385,9 @@ class SettingsPage(QWidget):
         for i in range(self.rules_tree.topLevelItemCount()):
             category_item = self.rules_tree.topLevelItem(i)
             category_name = category_item.text(0)
+            if category_name.casefold() in {x.casefold() for x in new_rules}:
+                self.save_feedback.setText('Category names must be unique.')
+                return
             
             # This is the new, robust saving algorithm
             has_sub_categories = False
@@ -381,9 +397,12 @@ class SettingsPage(QWidget):
             for j in range(category_item.childCount()):
                 child_item = category_item.child(j)
                 # If a child has its own children, it's a sub-category
-                if child_item.childCount() > 0:
+                if not child_item.text(0).startswith('.'):
                     has_sub_categories = True
                     sub_name = child_item.text(0)
+                    if sub_name.casefold() in {x.casefold() for x in nested_rules}:
+                        self.save_feedback.setText('Subcategory names must be unique.')
+                        return
                     extensions = [child_item.child(k).text(0) for k in range(child_item.childCount())]
                     nested_rules[sub_name] = extensions
                 else: # It's a flat extension
@@ -406,8 +425,18 @@ class SettingsPage(QWidget):
         self.current_config["ignore_list"] = new_ignore_list
         
         try:
+            if isolated_mode() and self.current_config['target_folder']:
+                Path(self.current_config['target_folder']).resolve().relative_to(data_root())
             self.config_manager.save_config(self.current_config)
-            QMessageBox.information(self, "Success", "Settings saved.")
+            startup_error = None
+            try:
+                if not isolated_mode() and self.startup_checkbox.isChecked() != startup_manager.is_enabled():
+                    startup_manager.enable() if self.startup_checkbox.isChecked() else startup_manager.disable()
+            except OSError as exc:
+                startup_error = str(exc)
+            self.save_feedback.setText(
+                f'Settings saved, but startup could not be changed: {startup_error}' if startup_error else
+                'Settings saved. A changed folder starts paused; use Start watching in Activity.')
             signals.config_changed.emit()
         except Exception as e:
-            QMessageBox.critical(self, "Error", f"Failed to save settings: {e}")
+            self.save_feedback.setText(f'Settings could not be fully applied: {e}')

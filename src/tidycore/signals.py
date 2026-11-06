@@ -9,5 +9,7 @@ class TidyCoreSignals(QObject):
     folder_decision_made = Signal(str, str, str)
     file_organized = Signal(str)
     config_changed = Signal()
+    activity_changed = Signal()
+    command_completed = Signal(bool, str)
 
 signals = TidyCoreSignals()

@@ -41,6 +41,11 @@ desktop.ini
 env/
 venv/
 .venv/
+work/
+docs/evidence/
+.pytest_cache/
+*.db-wal
+*.db-shm
 .env
 
 # Git-specific

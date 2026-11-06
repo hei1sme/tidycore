@@ -1,237 +1,135 @@
-# TidyCore v2.0.1
-
 <div align="center">
+  <img src="assets/tidycore.svg" width="72" alt="TidyCore">
+  <h1>TidyCore</h1>
+  <p>A place for every file.</p>
+  <p>A native Windows file organizer with a Fluent-inspired workspace,<br>clear rules, persistent history and moves you can undo.</p>
 
-**A smart, modern, and configurable file organization utility that automatically tidies up your folders.**
-
-![TidyCore Dashboard Screenshot](https://raw.githubusercontent.com/hei1sme/TidyCore/main/assets/dashboard.png)
-_The TidyCore Dashboard: At-a-glance monitoring of all file operations._
-
-[![Release](https://img.shields.io/github/release/hei1sme/TidyCore.svg)](https://github.com/hei1sme/TidyCore/releases)
-[![License](https://img.shields.io/github/license/hei1sme/TidyCore.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](https://github.com/hei1sme/TidyCore/releases)
-
+  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.2.0) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
 </div>
 
----
+![TidyCore Activity workspace](assets/screenshots/activity.png)
 
-TidyCore is a desktop application designed to bring order to your most cluttered folders, like "Downloads." It runs silently in the background, watching for new files and automatically moving them into categorized subdirectories based on a powerful and fully customizable set of rules.
+## Your folders, with a little more order
 
-Built with a modern user interface and a robust backend engine, TidyCore is the "set it and forget it" solution for maintaining a clean digital workspace.
+Choose a folder and TidyCore watches for new arrivals. Documents, images, archives
+and other files move into categories you control. Everything happens locally,
+with a record of what moved and where it went.
 
-## 🔧 What's New in v2.0.1
+- **A Windows-first workspace.** Fluent-inspired navigation, system glyphs,
+  readable state badges and a focused activity view, built with native Qt Widgets.
+- **History you can search.** Find files by name, category or path; filter organized,
+  undone and attention-needed operations. History survives restarts.
+- **Rules that fit your files.** Flat or nested categories, ignored names/extensions,
+  a configurable stability wait, and optional folder-content categorization.
+- **Moves with safeguards.** Partial downloads wait, locked files retry, collisions
+  receive a numbered name, and symbolic links/junctions stay out of the organizer.
+- **Undo with checks.** Restore unchanged contents to an empty original path.
+  Restored paths stay excluded so the watcher does not immediately sort them again.
+- **Quiet background operation.** Close to the Windows tray, reopen from the icon
+  or launch the EXE again, and explicitly Exit when you want watching to stop.
 
-### **Critical Bug Fixes**
-- **🔧 Engine Persistence**: Fixed critical issue where engine would stop when GUI window was closed - now properly runs in background
-- **💾 Database Functionality**: Restored persistent statistics tracking with thread-safe operations
-- **🎛️ Settings Save Button**: Fixed inaccessible save button in settings page - repositioned for better accessibility
-- **⚡ Live Configuration Updates**: Implemented real-time configuration reload - settings changes now apply immediately without restart
+## Get started
 
-### **Enhanced User Experience**
-- **🧹 Code Quality**: Removed debug logging for cleaner production experience
-- **🚀 Responsiveness**: Enhanced settings change responsiveness and UI interactions
-- **📋 Documentation**: Updated and cleaned up project documentation
+1. Download **TidyCore-v2.2.0-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
+2. Extract it and run **TidyCore.exe**. No Python installation is needed.
+3. Open **Settings → General**, choose a folder, review the rules and save.
+4. Return to **Activity** and select **Start watching**.
 
-## 🎉 What's New in v2.0.0
+First launch is **paused with no folder selected**. Existing files in the selected
+folder are included after the stability wait. Folders are ignored by default;
+opt into content-based categorization or moving folders to Others when wanted.
+Keep the EXE outside the folder you intend to organize.
 
-### 🏗️ **Professional Project Structure**
-- **Modern Python Package Layout**: Reorganized with `src/` structure following industry best practices
-- **Better Developer Experience**: Clear separation of source code, configuration, documentation, and scripts
-- **Enhanced Maintainability**: Professional folder organization for easier contribution and development
+The executable is unsigned. Checksums are included with the release. Updates are
+manual downloads; TidyCore does not silently check, download or replace itself.
 
-### 💾 **Persistent Statistics Database**
-- **SQLite Integration**: All statistics now persist between application restarts
-- **Historical Data**: Track your file organization history over time
-- **Performance Optimized**: Fast database queries for real-time dashboard updates
+## Make it yours
 
-### 🔄 **Intelligent Auto-Update System**
-- **Background Checking**: Silent update checks with non-intrusive notifications
-- **One-Click Updates**: Download and install updates with progress tracking
-- **Smart Versioning**: Automatic version comparison and update notifications
-- **Manual Control**: Option to check for updates manually from system tray
+![TidyCore Settings](assets/screenshots/settings.png)
 
-### 🎨 **Enhanced Modern UI**
-- **Dark Theme Excellence**: Professional dark theme with gradient backgrounds
-- **Improved Performance**: Better memory management and smoother animations
-- **Enhanced Accessibility**: Better contrast and readable typography
-- **Responsive Design**: Adapts beautifully to different window sizes
+Settings is divided into **General**, **File type rules** and **Ignored items**.
+The Save action stays visible while you work. Changing the watched folder starts
+the new target paused, so you can review it before organization begins.
 
-## ✨ Core Features
+| Shortcut | Action |
+|---|---|
+| Ctrl+F | Search history |
+| Ctrl+P | Pause or resume watching |
+| Ctrl+Z | Undo the selected move |
+| Alt+V | Save settings |
 
-- **Automatic & Real-time Organization:** Runs as a background utility, watching a target folder for new or modified files and organizing them instantly.
-- **Intelligent & Safe:** Implements a cooldown period to safely handle large files and in-progress downloads (`.crdownload`, `.tmp`) without moving corrupted data.
-- **Smart Folder Categorization:** Can intelligently scan inside new folders to determine their dominant content type and sort them accordingly.
-- **Powerful Rules Engine:** Comes with sensible defaults but gives you full control to edit, add, and create complex nested rules via an intuitive graphical editor.
-- **Modern Dashboard:** A sleek, real-time dashboard to monitor activity, view statistics, and see a live breakdown of organized files in a donut chart.
-- **User-Trust Features:** The "Recent Folder Decisions" panel shows you exactly which folders were moved and allows you to **Undo** the action or **Ignore** the folder in the future with a single click.
-- **System Tray Integration:** Hides to the system tray for unobtrusive background operation. A right-click menu provides quick access to the dashboard and exit controls.
-- **Startup on Boot:** Can be configured to launch automatically when you log in to your computer.
+The Activity log expands for session messages and opens automatically on errors.
+The history view displays the latest 200 persisted operations. Summary numbers
+are completed journal operations minus undo, not a live inventory of files on
+disk; a folder move counts as one operation. External file deletion/moves do not
+rewrite the journal.
 
-## 🚀 Getting Started
+## Local data and recovery
 
-### Quick Installation (Recommended)
+Settings, rotating logs and `tidycore_stats.db` live in **`%LOCALAPPDATA%\TidyCore`**,
+independently of the executable or working directory. A configuration save is
+atomic and keeps the previous settings file as `config.json.bak`.
 
-TidyCore is a portable application - no complex installation required!
+SQLite records a pending operation before a move and completion afterward. On
+restart, interrupted operations are reconciled against paths and content hashes;
+ambiguous cases are left for manual review. Schema upgrades create a consistent
+backup first. Corrupt or newer databases are retained and startup stops visibly.
 
-1. **Download the latest release:** Go to the [**TidyCore Releases Page**](https://github.com/hei1sme/TidyCore/releases) on GitHub.
-2. Download the `TidyCore-v2.0.1-Windows.zip` file from the latest release.
-3. **Extract the archive:** Right-click the downloaded `.zip` file and select "Extract All..." to a location of your choice (e.g., your Desktop or `C:\Program Files`).
-4. **Run the application:** Open the extracted `TidyCore` folder and double-click `TidyCore.exe`.
+See [recovery guidance](docs/RECOVERY.md) before importing older state or restoring
+a backup. v2.0.1 data stored beside an executable/source checkout is not imported
+automatically. Review old targets and set `start_paused` to `true` before importing.
+Legacy operations without fingerprints cannot safely offer automatic undo.
 
-That's it! TidyCore will start, and its icon will appear in your system tray.
+## Develop on Windows
 
-### Development Installation
+Python **3.12.10**, **PySide6 6.9.1**, watchdog and SQLite. Use a project-local
+Windows environment from PowerShell:
 
-For developers who want to run from source or contribute:
-
-```bash
-# Clone the repository
-git clone https://github.com/hei1sme/TidyCore.git
-cd TidyCore
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the application
-python main.py
+```powershell
+py -3.12 -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+& .\.venv\Scripts\python.exe -m pytest -q
+& .\.venv\Scripts\python.exe -m pip check
 ```
 
-### First-Time Setup
+Use disposable inputs for development. Create an isolated data directory with a
+`watch` subfolder, then launch:
 
-On first launch, TidyCore will automatically detect your user's **Downloads** folder and begin watching it. You can change the target folder and all other settings by opening the dashboard from the system tray icon and navigating to the **Settings** page.
-
-> **Note:** On Windows, you may see a "Windows protected your PC" SmartScreen prompt. This is because the application is not code-signed. Click **"More info"** and then **"Run anyway"** to proceed.
-
-## 🖼️ Screenshots
-
-<div align="center">
-
-**The fully-featured Settings page, giving you granular control over all rules.**
-![TidyCore Settings Screenshot](https://raw.githubusercontent.com/hei1sme/TidyCore/main/assets/settings.png)
-
-</div>
-
-## 🛠️ Built With
-
-TidyCore was built with a modern Python stack:
-
-### Backend Technologies
-
-- **[Python 3.8+](https://www.python.org/)** - Core programming language
-- **[Watchdog](https://github.com/gorakhargosh/watchdog)** - File system event monitoring
-- **[SQLite](https://sqlite.org/)** - Embedded database for statistics
-- **[Requests](https://requests.readthedocs.io/)** - HTTP client for auto-updates
-
-### Frontend (GUI)
-
-- **[PySide6 (Qt for Python)](https://www.qt.io/qt-for-python)** - Modern, cross-platform user interface
-- **[QTAwesome](https://github.com/spyder-ide/qtawesome)** - High-quality vector icons
-- **[PyQtGraph](https://www.pyqtgraph.org/)** - Beautiful, real-time charts and visualizations
-
-### Build & Distribution
-
-- **[PyInstaller](https://www.pyinstaller.org/)** - Standalone executable bundling
-- **[GitHub Actions](https://github.com/features/actions)** - Automated CI/CD pipeline
-- **Professional Project Structure** - Modern `src/` layout following Python best practices
-
-## 📊 Project Structure
-
-```text
-TidyCore/
-├── src/tidycore/          # Source code package
-├── config/                # Configuration files
-├── scripts/               # Build and utility scripts
-├── docs/                  # Documentation
-├── assets/                # Screenshots and media
-└── .github/workflows/     # CI/CD automation
+```powershell
+& .\.venv\Scripts\python.exe main.py --data-dir C:\TidyCore-Test --test-mode
 ```
 
-For detailed information about the project structure, see [PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md).
+Test mode confines watched folders to that data directory and disables Windows
+startup integration. Select its disposable `watch` subfolder in Settings. Do not
+use Downloads, synced folders or other personal data for tests.
 
-## 📈 Performance & Statistics
+Build the portable EXE and ZIP:
 
-- **Lightweight**: Small memory footprint (~50MB RAM usage)
-- **Fast**: Real-time file processing with configurable cooldown
-- **Reliable**: Comprehensive error handling and logging
-- **Persistent**: SQLite database preserves statistics across restarts
-- **Scalable**: Handles large directories efficiently
+```powershell
+& .\.venv\Scripts\python.exe scripts/build_release.py
+```
 
-## 🔧 Configuration
+Builds use unique output directories, include Windows file-version metadata,
+and produce `BUILD.json` and `SHA256SUMS.txt`. They do not kill processes or delete
+previous builds. The GitHub workflow runs isolated Windows tests on main/PRs;
+a manual workflow run also builds an artifact. Publishing remains a separate action.
 
-TidyCore is highly configurable with support for:
+## Scope and limits
 
-- **Custom File Rules**: Define your own categorization rules
-- **Flexible Folder Handling**: Smart scan, move to others, or ignore
-- **Cooldown Periods**: Adjustable wait times for file processing
-- **Ignore Lists**: Exclude specific files or extensions
-- **Update Settings**: Control automatic update behavior
+TidyCore is validated as a **Windows desktop application**. It uses same-volume
+Windows rename without a copy/delete fallback. A quiet-period check is a heuristic:
+another application can still write later. Changed contents, occupied originals
+and missing destinations require manual handling rather than a forced undo.
+Persistent undo exclusions currently have no reset control in the UI.
 
-## 🚀 Advanced Features
+Other operating systems, network shares, cloud sync, alternate data streams,
+hostile path replacement, large-directory performance and physical power-loss
+durability are not validated. Automatic backups occur before schema upgrades,
+not on a schedule. See the [validation record](docs/VALIDATION.md) and
+[assessment](docs/ASSESSMENT.md) for evidence and boundaries.
 
-### Auto-Update System
+## Project
 
-- **Silent Background Checks**: Non-intrusive update notifications
-- **One-Click Installation**: Download and install updates seamlessly
-- **Manual Control**: Check for updates on demand from system tray
-- **Version Intelligence**: Smart comparison and compatibility checking
+[Design](DESIGN.md) · [Structure](docs/PROJECT_STRUCTURE.md) · [Build workflow](docs/RELEASE_WORKFLOW.md) · [Changelog](docs/CHANGELOG.md)
 
-### Database Integration
-
-- **Persistent Statistics**: Track file organization history
-- **Performance Metrics**: Monitor processing speed and efficiency
-- **Historical Analysis**: View trends over time
-- **Data Integrity**: Automatic backup and recovery
-
-### Professional Architecture
-
-- **Modular Design**: Clean separation of concerns
-- **Plugin Ready**: Extensible architecture for future enhancements
-- **Cross-Platform**: Windows, Linux, and macOS support
-- **Developer Friendly**: Well-documented code and clear structure
-
-## 👤 About the Creator
-
-This project was developed by **Le Nguyen Gia Hung (hei)**.
-
-I am a second-year AI Major at FPT University and the founder of [SpeedyLabX](https://github.com/SpeedyLabX), a student-led research group. I am passionate about building practical, data-driven solutions to real-world challenges.
-
-**Connect with me:**
-
-[![Email](https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white)](mailto:heiontheway@gmail.com)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/le-nguyen-gia-hung)
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hei1sme)
-
-## 📖 Documentation
-
-- **[Installation Guide](docs/INSTALLATION.md)** - Detailed installation instructions
-- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Understanding the codebase
-- **[Development Guide](docs/DEVELOPMENT_SUMMARY.md)** - For contributors
-- **[Changelog](docs/CHANGELOG.md)** - Version history and updates
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-## 🐛 Support
-
-- **Issues**: [GitHub Issues](https://github.com/hei1sme/TidyCore/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/hei1sme/TidyCore/discussions)
-- **Email**: [heiontheway@gmail.com](mailto:heiontheway@gmail.com)
-
-## ⭐ Show Your Support
-
-If you find TidyCore helpful, please consider giving it a star on GitHub! It helps others discover the project and motivates continued development.
-
-[![GitHub stars](https://img.shields.io/github/stars/hei1sme/TidyCore.svg?style=social&label=Star)](https://github.com/hei1sme/TidyCore)
-
-## 📜 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**Made with ❤️ for a cleaner digital workspace**
-
-</div>
+Created by **Le Nguyen Gia Hung (hei)**. Licensed under the [MIT License](LICENSE).

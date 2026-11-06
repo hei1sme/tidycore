@@ -1,7 +1,8 @@
 {
-  "target_folder": "C:\\Users\\Le Nguyen Gia Hung\\Downloads",
+  "target_folder": "",
+  "start_paused": true,
   "cooldown_period_seconds": 10,
-  "folder_handling_strategy": "smart_scan",
+  "folder_handling_strategy": "ignore",
   "ignore_list": [
     ".crdownload",
     ".part",

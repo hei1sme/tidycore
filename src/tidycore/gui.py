@@ -1,886 +1,504 @@
-# tidycore/gui.py
-import sys
-import os
-import logging
-import qtawesome as qta
+"""Fluent-inspired native workspace backed by the persisted operation journal."""
+from datetime import date, datetime
+from pathlib import Path
+
+from PySide6.QtCore import QSize, Qt, QTimer, QUrl, Slot
+from PySide6.QtGui import QAction, QDesktopServices, QIcon, QKeySequence
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QHBoxLayout, QVBoxLayout,
-    QPushButton, QLabel, QStackedWidget, QGroupBox, QTextEdit,
-    QButtonGroup, QSystemTrayIcon, QMenu, QGridLayout, QScrollArea,
-    QGraphicsDropShadowEffect, QProgressBar, QFrame
+    QAbstractItemView, QApplication, QComboBox, QFrame, QHeaderView, QHBoxLayout,
+    QLabel, QLineEdit, QMainWindow, QMenu, QPlainTextEdit, QPushButton,
+    QStackedWidget, QSystemTrayIcon, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
 )
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QIcon, QAction, QColor, QFont
 
-from .signals import signals
-from .pie_chart_widget import PieChartWidget
-from .folder_decision_widget import FolderDecisionWidget
+from . import __version__
+from .config_manager import load_config
 from .settings_page import SettingsPage
-# --- NEW: Import the AboutPage ---
-from .about_page import AboutPage
-# --- NEW: Import the get_absolute_path function ---
-from .utils import get_absolute_path
-# --- NEW: Import the database ---
-from .database import statistics_db
-# --- NEW: Import the updater safely ---
-from .updater import get_update_manager
-from .update_dialog import UpdateDialog, UpdateNotificationWidget
+from .signals import signals
+from .theme import STYLESHEET, ElidedLabel, NavigationButton, StateDelegate, apply_theme, fluent_icon
+from .utils import data_root, get_absolute_path
 
-# --- NEW: Get the single instance of the update manager ---
-update_manager = get_update_manager()
-STYLESHEET = """
-/* ---- Main Window ---- */
-#MainWindow {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #1a1b26);
-    font-family: 'Segoe UI', 'Inter', 'Roboto', Arial, sans-serif;
-}
-#Sidebar {
-    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #31355a, stop:1 #23243a);
-    border-right: 1px solid #3b3f51;
-}
-#Sidebar #LogoLabel {
-    margin-bottom: 22px;
-    padding: 12px 0 12px 0;
-    text-align: center;
-}
-#Sidebar QPushButton {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23243a, stop:1 #31355a);
-    border: none;
-    color: #a9b1d6;
-    text-align: left;
-    padding: 18px 28px;
-    border-radius: 18px;
-    font-size: 18px;
-    margin-bottom: 12px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
-}
-#Sidebar QPushButton:hover {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
-    color: #23243a;
-    font-weight: bold;
-    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
-}
-#Sidebar QPushButton:checked {
-    background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #bb9af7);
-    color: #ffffff;
-    font-weight: bold;
-    /* box-shadow: 0 6px 24px 0 rgba(122,162,247,0.22); */
-    border: 1.5px solid #7aa2f7;
-}
-/* Modern global QPushButton style */
-QPushButton {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #7aa2f7, stop:1 #7dcfff);
-    color: #23243a;
-    border: none;
-    border-radius: 14px;
-    font-size: 17px;
-    font-weight: 600;
-    padding: 12px 28px;
-    margin: 8px 0;
-    /* box-shadow: 0 2px 12px 0 rgba(122,162,247,0.10); */
-}
-/* Specific styling for compact buttons */
-QPushButton[objectName="pause_resume_button"] {
-    font-size: 14px;
-    padding: 8px 16px;
-    margin: 4px 0;
-}
-QPushButton:hover {
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #bb9af7, stop:1 #7aa2f7);
-    color: #fff;
-    /* box-shadow: 0 4px 18px 0 rgba(122,162,247,0.18); */
-}
-QPushButton:pressed {
-    background: #414868;
-    color: #fff;
-}
-#ContentArea {
-    padding: 28px 28px 18px 28px;
-}
-QGroupBox {
-    background-color: rgba(35,36,58,0.96);
-    border-radius: 24px;
-    border: 1.5px solid #363a4f;
-    margin-top: 26px;
-    padding-top: 26px;
-    font-size: 18px;
-    font-weight: bold;
-    color: #c0c5ea;
-}
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 0 20px;
-    left: 28px;
-    font-size: 20px;
-    color: #7aa2f7;
-}
-QLabel {
-    color: #a9b1d6;
-    font-size: 17px;
-    font-weight: normal;
-}
-QLabel#StatusLabel {
-    font-size: 30px;
-    font-weight: bold;
-    color: #9ece6a;
-    letter-spacing: 1px;
-}
-QLabel#StatusLabel[paused="true"] {
-    color: #f7768e;
-}
-QTextEdit {
-    background-color: #181926;
-    border: 1.5px solid #363a4f;
-    border-radius: 16px;
-    color: #a9b1d6;
-    font-size: 16px;
-    padding: 16px;
-}
-"""
-"""
-}
-"""
+
+def label(text, role=None):
+    widget = QLabel(text)
+    widget.setTextFormat(Qt.TextFormat.PlainText)
+    if role:
+        widget.setObjectName(role)
+    return widget
+
+
+def surface(name='Surface'):
+    widget = QFrame()
+    widget.setObjectName(name)
+    return widget
 
 
 class TidyCoreGUI(QMainWindow):
-    """The main GUI window for TidyCore, featuring a sidebar and content area."""
-
     def __init__(self, engine, app: QApplication):
         super().__init__()
-        self.engine = engine
-        self.app = app
-        self.logger = logging.getLogger("TidyCore")
-
-        # --- GUI OWNS ALL DISPLAY DATA ---
-        self.category_counts = {}
-        self.chart_colors = [
-            QColor("#7aa2f7"), QColor("#ff79c6"), QColor("#9ece6a"),
-            QColor("#e0af68"), QColor("#bb9af7"), QColor("#7dcfff")
-        ]
-        
-        # --- GUI CONTROLS ITS OWN REFRESH ---
-        self.chart_update_timer = QTimer(self)
-        self.chart_update_timer.setSingleShot(True)
-        self.chart_update_timer.setInterval(250) # Refresh 250ms after the last event
-        self.chart_update_timer.timeout.connect(self.redraw_dashboard_charts)
-
-        # --- UPDATE NOTIFICATION WIDGET ---
-        self.update_notification = None
-        
-        # Load initial category data from database
-        self.category_counts = statistics_db.get_category_stats_today()
-
-        self.setWindowTitle("TidyCore - File Organization Dashboard")
-        self.setMinimumSize(1000, 750) # Slightly larger for better spacing
-        self.setObjectName("MainWindow")
-        
-        # Set window icon
-        icon_path = get_absolute_path("icon.png")
-        if os.path.exists(icon_path):
-            self.setWindowIcon(QIcon(icon_path))
-        
+        self.engine, self.app, self.db = engine, app, engine.db
+        apply_theme(app)
+        self._stats_date = date.today()
+        self.operations, self.displayed_operations = [], []
+        self.setWindowTitle(f'TidyCore {__version__}')
+        self.setWindowIcon(QIcon(get_absolute_path('assets/tidycore.svg')))
+        self.resize(1160, 800)
+        self.setMinimumSize(860, 600)
         self.setStyleSheet(STYLESHEET)
-
-        main_layout = QHBoxLayout()
-        main_layout.setSpacing(0)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        
-        sidebar = self._create_sidebar()
-        content_area = self._create_content_area()
-
-        main_layout.addWidget(sidebar)
-        main_layout.addWidget(content_area, 1)
-
-        central_widget = QWidget()
-        central_widget.setLayout(main_layout)
-        self.setCentralWidget(central_widget)
-        
-        self._create_tray_icon()
-        self._connect_signals()
-        
-        # --- NEW: Check for updates on startup (silent check) ---
-        QTimer.singleShot(2000, lambda: update_manager.check_for_updates(silent=True))
-        
-        # --- NEW: Connect update manager signals ---
-        update_manager.checker.update_available.connect(self.show_update_notification)
-        update_manager.checker.error_occurred.connect(self._on_update_error)
-        
-        QTimer.singleShot(100, self.engine.request_status)
-
-
-    def _create_sidebar(self) -> QWidget:
-
-        sidebar_widget = QWidget()
-        sidebar_widget.setObjectName("Sidebar")
-        sidebar_widget.setFixedWidth(220)
-        sidebar_layout = QVBoxLayout(sidebar_widget)
-        sidebar_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        sidebar_layout.setContentsMargins(16, 18, 16, 18)
-        sidebar_layout.setSpacing(8)
-
-        # Logo or avatar at the top
-        logo_label = QLabel()
-        logo_label.setObjectName("LogoLabel")
-        logo_path = get_absolute_path("icon.png")
-        if os.path.exists(logo_path):
-            logo_label.setPixmap(QIcon(logo_path).pixmap(64, 64))
-        else:
-            logo_label.setText("🧹")
-            logo_label.setStyleSheet("font-size: 40px; text-align: center; color: #7aa2f7;")
-        logo_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        sidebar_layout.addWidget(logo_label)
-
-        # App name
-        title_label = QLabel("TidyCore")
-        title_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #ffffff; margin-bottom: 18px; padding-left: 0px; letter-spacing: 2px; text-align: center;")
-        title_label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        sidebar_layout.addWidget(title_label)
-
-        # Create navigation buttons
-        self.dashboard_button = QPushButton("  Dashboard")
-        self.dashboard_button.setIcon(qta.icon("fa5s.home"))
-        self.dashboard_button.setCheckable(True)
-
-        self.settings_button = QPushButton("  Settings")
-        self.settings_button.setIcon(qta.icon("fa5s.cog"))
-        self.settings_button.setCheckable(True)
-
-        self.about_button = QPushButton("  About")
-        self.about_button.setIcon(qta.icon("fa5s.info-circle"))
-        self.about_button.setCheckable(True)
-
-        self.nav_button_group = QButtonGroup(self)
-        self.nav_button_group.setExclusive(True)
-        self.nav_button_group.addButton(self.dashboard_button)
-        self.nav_button_group.addButton(self.settings_button)
-        self.nav_button_group.addButton(self.about_button)
-
-        self.dashboard_button.setChecked(True)
-
-        # Create indicator bars for modern navigation
-        self.dashboard_indicator = QWidget()
-        self.dashboard_indicator.setFixedSize(4, 40)
-        self.dashboard_indicator.setStyleSheet("background: #7aa2f7; border-radius: 2px;")
-        
-        self.settings_indicator = QWidget()
-        self.settings_indicator.setFixedSize(4, 40)
-        self.settings_indicator.setStyleSheet("background: #7aa2f7; border-radius: 2px;")
-        
-        self.about_indicator = QWidget()
-        self.about_indicator.setFixedSize(4, 40)
-        self.about_indicator.setStyleSheet("background: #7aa2f7; border-radius: 2px;")
-
-        # Create layouts for each navigation row (indicator + button)
-        def create_nav_row(indicator, button):
-            row_widget = QWidget()
-            row_layout = QHBoxLayout(row_widget)
-            row_layout.setContentsMargins(0, 0, 0, 0)
-            row_layout.setSpacing(8)
-            row_layout.addWidget(indicator)
-            row_layout.addWidget(button, 1)
-            return row_widget
-
-        dashboard_row = create_nav_row(self.dashboard_indicator, self.dashboard_button)
-        settings_row = create_nav_row(self.settings_indicator, self.settings_button)
-        about_row = create_nav_row(self.about_indicator, self.about_button)
-
-        sidebar_layout.addWidget(dashboard_row)
-        sidebar_layout.addWidget(settings_row)
-        sidebar_layout.addWidget(about_row)
-        sidebar_layout.addStretch(1)
-
-        # Update indicators when buttons are toggled
-        def update_indicators():
-            self.dashboard_indicator.setVisible(self.dashboard_button.isChecked())
-            self.settings_indicator.setVisible(self.settings_button.isChecked())
-            self.about_indicator.setVisible(self.about_button.isChecked())
-
-        self.dashboard_button.toggled.connect(update_indicators)
-        self.settings_button.toggled.connect(update_indicators)
-        self.about_button.toggled.connect(update_indicators)
-        
-        # Initialize indicators
-        update_indicators()
-
-        self.dashboard_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(0))
-        self.settings_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(1))
-        self.about_button.clicked.connect(lambda: self.stacked_widget.setCurrentIndex(2))
-
-        return sidebar_widget
-
-
-    def _create_content_area(self) -> QWidget:
-        """Creates the main content area with a stacked widget for pages."""
-        content_widget = QWidget()
-        content_widget.setObjectName("ContentArea")
-        content_layout = QVBoxLayout(content_widget)
-        
+        root = QWidget()
+        root.setObjectName('Workspace')
+        self.setCentralWidget(root)
+        layout = QHBoxLayout(root)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        navigation = QWidget()
+        navigation.setObjectName('Navigation')
+        navigation.setFixedWidth(220)
+        nav = QVBoxLayout(navigation)
+        nav.setContentsMargins(14, 28, 14, 18)
+        nav.setSpacing(6)
+        brand = QHBoxLayout()
+        mark = label('')
+        mark.setPixmap(self.windowIcon().pixmap(36, 36))
+        brand.addWidget(mark)
+        brand_text = QVBoxLayout()
+        brand_text.setSpacing(2)
+        brand_text.addWidget(label('TidyCore', 'Brand'))
+        brand_text.addWidget(label('File organization, simplified', 'Caption'))
+        brand.addLayout(brand_text)
+        brand.addStretch()
+        nav.addLayout(brand)
+        nav.addSpacing(28)
+        nav.addWidget(label('WORKSPACE', 'Caption'))
+        nav.addSpacing(4)
         self.stacked_widget = QStackedWidget()
-        content_layout.addWidget(self.stacked_widget)
-        
-        self.dashboard_page = self._create_dashboard_page()
+        self.dashboard_button = NavigationButton('&Activity')
+        self.settings_button = NavigationButton('&Settings')
+        self.about_button = NavigationButton('A&bout')
+        for index, button in enumerate((self.dashboard_button, self.settings_button, self.about_button)):
+            button.setObjectName('NavItem')
+            button.setCheckable(True)
+            button.setIconSize(QSize(20, 20))
+            button.clicked.connect(lambda checked=False, i=index: self.select_page(i))
+            nav.addWidget(button)
+        nav.addStretch()
+        self.nav_status = label('●  Paused', 'Caption')
+        self.nav_status.setContentsMargins(14, 0, 0, 0)
+        nav.addWidget(self.nav_status)
+        nav.addSpacing(8)
+        self.exit_button = QPushButton('E&xit TidyCore')
+        self.exit_button.setObjectName('NavItem')
+        self.exit_button.setIcon(fluent_icon('exit'))
+        self.exit_button.clicked.connect(self._exit_application)
+        nav.addWidget(self.exit_button)
+        version = label(f'Version {__version__}', 'Caption')
+        version.setContentsMargins(14, 4, 0, 0)
+        nav.addWidget(version)
+        layout.addWidget(navigation)
+        layout.addWidget(self.stacked_widget, 1)
+        self.stacked_widget.addWidget(self._activity_page())
         self.settings_page = SettingsPage()
-        # --- NEW: Create an instance of the AboutPage ---
-        self.about_page = AboutPage()
-        
-        # Add all pages to the stacked widget in order
-        self.stacked_widget.addWidget(self.dashboard_page)
         self.stacked_widget.addWidget(self.settings_page)
-        self.stacked_widget.addWidget(self.about_page) # Add new page
-        
-        return content_widget
+        self.stacked_widget.addWidget(self._about_page())
+        self.select_page(0)
+        self._create_tray_icon()
+        signals.log_message.connect(self.add_log_message, Qt.ConnectionType.QueuedConnection)
+        signals.status_changed.connect(self.update_status, Qt.ConnectionType.QueuedConnection)
+        signals.activity_changed.connect(self.schedule_refresh, Qt.ConnectionType.QueuedConnection)
+        signals.config_changed.connect(self.handle_config_change)
+        signals.command_completed.connect(self.command_completed, Qt.ConnectionType.QueuedConnection)
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.setSingleShot(True)
+        self.refresh_timer.setInterval(150)
+        self.refresh_timer.timeout.connect(self.refresh_history)
+        self.status_timer = QTimer(self)
+        self.status_timer.setInterval(1000)
+        self.status_timer.timeout.connect(self.refresh_status)
+        self.status_timer.start()
+        self.refresh_history()
+        self.refresh_status()
+        self.statusBar().showMessage('Close to keep watching in the tray. Exit to stop TidyCore.')
+        for title, shortcut, callback in (
+            ('Undo selected move', 'Ctrl+Z', self.undo_selected),
+            ('Pause or resume', 'Ctrl+P', self.toggle_pause_resume),
+            ('Search history', 'Ctrl+F', self.focus_search),
+        ):
+            action = QAction(title, self)
+            action.setShortcut(QKeySequence(shortcut))
+            action.triggered.connect(callback)
+            self.addAction(action)
 
+    def select_page(self, index):
+        self.stacked_widget.setCurrentIndex(index)
+        for i, (button, icon) in enumerate(((self.dashboard_button,'activity'),(self.settings_button,'settings'),(self.about_button,'about'))):
+            button.setChecked(i == index)
+            button.setIcon(fluent_icon(icon, '#005FB8' if i == index else '#616161'))
 
-    def _create_dashboard_page(self) -> QWidget:
+    def _activity_page(self):
         page = QWidget()
-        layout = QGridLayout(page) # Use a Grid for more control
-        
-        # Create all the boxes first
-        chart_box = self._create_chart_box()
-        status_box = self._create_status_box()
-        stats_box = self._create_statistics_box()
-        activity_feed_box = self._create_activity_feed_box()
-        
-        folder_decisions_box = self._create_folder_decisions_box()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28, 26, 28, 16)
+        layout.setSpacing(18)
+        heading = QHBoxLayout()
+        title = QVBoxLayout()
+        title.setSpacing(4)
+        title.addWidget(label('Activity', 'Title'))
+        title.addWidget(label('A little order. A lot less clutter.', 'Muted'))
+        heading.addLayout(title)
+        heading.addStretch()
+        self.status_label = label('Starting', 'StatusPill')
+        self.pause_resume_button = QPushButton('Start watching')
+        self.pause_resume_button.setObjectName('Primary')
+        self.pause_resume_button.setToolTip('Start or pause organization (Ctrl+P)')
+        self.pause_resume_button.clicked.connect(self.toggle_pause_resume)
+        heading.addWidget(self.status_label,alignment=Qt.AlignmentFlag.AlignVCenter)
+        heading.addSpacing(6)
+        heading.addWidget(self.pause_resume_button,alignment=Qt.AlignmentFlag.AlignVCenter)
+        layout.addLayout(heading)
 
-        # Add them to the grid
-        layout.addWidget(chart_box, 0, 0, 2, 1)    # Row 0, Col 0, span 2 rows, 1 col
-        layout.addWidget(status_box, 0, 1)         # Row 0, Col 1
-        layout.addWidget(stats_box, 1, 1)          # Row 1, Col 1
-        
-        # Add the two bottom boxes
-        layout.addWidget(activity_feed_box, 2, 0)       # Row 2, Col 0
-        layout.addWidget(folder_decisions_box, 2, 1)    # Row 2, Col 1
+        watch = surface()
+        watch_layout = QHBoxLayout(watch)
+        watch_layout.setContentsMargins(18, 15, 14, 15)
+        watch_layout.setSpacing(14)
+        folder = label('')
+        folder.setPixmap(fluent_icon('folder','#005FB8').pixmap(28,28))
+        watch_layout.addWidget(folder)
+        path_layout = QVBoxLayout()
+        path_layout.setSpacing(4)
+        path_layout.addWidget(label('Watched folder', 'Caption'))
+        self.path_label = ElidedLabel('No folder selected')
+        self.path_label.setAccessibleName('Watched folder path')
+        path_layout.addWidget(self.path_label)
+        watch_layout.addLayout(path_layout, 1)
+        change = QPushButton('Change folder')
+        change.setObjectName('Quiet')
+        change.clicked.connect(lambda: self.select_page(1))
+        watch_layout.addWidget(change)
+        layout.addWidget(watch)
 
-        # Set stretch factors to control sizing with better proportions
-        layout.setColumnStretch(0, 3) # Chart column is larger
-        layout.setColumnStretch(1, 2) # Right column
-        layout.setRowStretch(0, 2)    # Status row 
-        layout.setRowStretch(1, 2)    # Stats row 
-        layout.setRowStretch(2, 4)    # Activity feed is largest
-        
-        # Add spacing between grid items
-        layout.setSpacing(20)
-        layout.setContentsMargins(10, 10, 10, 10)
+        metrics = QHBoxLayout()
+        metrics.setContentsMargins(2, 0, 2, 0)
+        metrics.setSpacing(36)
+        self.today_value, self.total_value, self.category_value = (label('0','Metric') for _ in range(3))
+        for value, caption in ((self.today_value,'Organized today'),(self.total_value,'Net moves recorded'),(self.category_value,'Categories today')):
+            column = QVBoxLayout()
+            column.setSpacing(1)
+            column.addWidget(value)
+            column.addWidget(label(caption,'Caption'))
+            metrics.addLayout(column)
+        metrics.addStretch()
+        self.stats_label = label('History is saved on this device', 'Caption')
+        metrics.addWidget(self.stats_label, alignment=Qt.AlignmentFlag.AlignBottom)
+        self.metrics_container = QWidget()
+        self.metrics_container.setLayout(metrics)
+        layout.addWidget(self.metrics_container)
 
+        history = surface()
+        history_layout = QVBoxLayout(history)
+        history_layout.setContentsMargins(16, 16, 16, 12)
+        history_layout.setSpacing(10)
+        history_heading = QHBoxLayout()
+        history_heading.addWidget(label('Organization history','Heading'))
+        history_heading.addStretch()
+        self.history_count = label('Latest 200 operations','Caption')
+        history_heading.addWidget(self.history_count)
+        history_layout.addLayout(history_heading)
+        toolbar = QHBoxLayout()
+        self.history_search = QLineEdit()
+        self.history_search.setPlaceholderText('Search files, categories or paths')
+        self.history_search.setAccessibleName('Search organization history')
+        self.history_search.setClearButtonEnabled(True)
+        self.history_search.addAction(fluent_icon('search'), QLineEdit.ActionPosition.LeadingPosition)
+        self.history_search.textChanged.connect(self.render_history)
+        self.history_filter = QComboBox()
+        self.history_filter.setAccessibleName('Filter history by state')
+        self.history_filter.addItems(['All activity','Organized','Undone','Needs attention'])
+        self.history_filter.currentIndexChanged.connect(self.render_history)
+        reload_button = QPushButton()
+        reload_button.setIcon(fluent_icon('refresh'))
+        reload_button.setToolTip('Refresh history')
+        reload_button.setAccessibleName('Refresh history')
+        reload_button.clicked.connect(self.refresh_history)
+        toolbar.addWidget(self.history_search, 1)
+        toolbar.addWidget(self.history_filter)
+        toolbar.addWidget(reload_button)
+        history_layout.addLayout(toolbar)
+        self.empty_label = label('Choose a folder in Settings to get started.','Muted')
+        self.empty_label.setWordWrap(True)
+        self.empty_label.setContentsMargins(12, 16, 12, 16)
+        self.empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        history_layout.addWidget(self.empty_label,1)
+        self.history_table = QTableWidget(0, 4)
+        self.history_table.setAccessibleName('Persisted organization history')
+        self.history_table.setHorizontalHeaderLabels(['Name','Category','When','State'])
+        self.history_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.history_table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        self.history_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.history_table.setShowGrid(False)
+        self.history_table.setMinimumHeight(128)
+        self.history_table.setIconSize(QSize(20,20))
+        self.history_table.setItemDelegateForColumn(3,StateDelegate(self.history_table))
+        self.history_table.verticalHeader().hide()
+        self.history_table.verticalHeader().setDefaultSectionSize(44)
+        self.history_table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch)
+        for col, width in ((1,150),(2,135),(3,115)):
+            self.history_table.horizontalHeader().setSectionResizeMode(col,QHeaderView.ResizeMode.Interactive)
+            self.history_table.setColumnWidth(col,width)
+        self.history_table.itemSelectionChanged.connect(self.show_selection)
+        history_layout.addWidget(self.history_table, 1)
+        self.detail_surface = surface('DetailSurface')
+        detail = QHBoxLayout(self.detail_surface)
+        detail.setContentsMargins(12,10,12,10)
+        detail_paths = QVBoxLayout()
+        detail_paths.setSpacing(3)
+        self.details_label = ElidedLabel('')
+        self.details_label.setObjectName('Caption')
+        self.destination_label = ElidedLabel('')
+        self.destination_label.setObjectName('Caption')
+        detail_paths.addWidget(self.details_label)
+        detail_paths.addWidget(self.destination_label)
+        detail.addLayout(detail_paths,1)
+        self.undo_button = QPushButton('&Undo move')
+        self.undo_button.setIcon(fluent_icon('undo'))
+        self.undo_button.setToolTip('Restore unchanged contents without overwriting (Ctrl+Z)')
+        self.undo_button.clicked.connect(self.undo_selected)
+        detail.addWidget(self.undo_button,alignment=Qt.AlignmentFlag.AlignVCenter)
+        history_layout.addWidget(self.detail_surface)
+        layout.addWidget(history,1)
+
+        log_header = QHBoxLayout()
+        self.log_toggle = QPushButton('Activity log')
+        self.log_toggle.setObjectName('LogToggle')
+        self.log_toggle.setIcon(fluent_icon('chevron'))
+        self.log_toggle.setCheckable(True)
+        self.log_toggle.toggled.connect(self.toggle_log)
+        log_header.addWidget(self.log_toggle)
+        self.last_message = ElidedLabel('No events in this session')
+        self.last_message.setObjectName('Caption')
+        log_header.addWidget(self.last_message,1)
+        layout.addLayout(log_header)
+        self.activity_feed = QPlainTextEdit()
+        self.activity_feed.setAccessibleName('Session activity log')
+        self.activity_feed.setReadOnly(True)
+        self.activity_feed.setMaximumBlockCount(500)
+        self.activity_feed.setMaximumHeight(130)
+        self.activity_feed.setPlaceholderText('Moves, settings and errors appear here.')
+        self.activity_feed.hide()
+        layout.addWidget(self.activity_feed)
         return page
 
+    def _about_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(28,26,28,24)
+        layout.setSpacing(20)
+        layout.addWidget(label('About','Title'))
+        brand = QHBoxLayout()
+        mark = label('')
+        mark.setPixmap(self.windowIcon().pixmap(64,64))
+        brand.addWidget(mark)
+        text = QVBoxLayout()
+        text.addWidget(label('TidyCore','Title'))
+        text.addWidget(label(f'Version {__version__} · Windows desktop','Muted'))
+        brand.addLayout(text)
+        brand.addStretch()
+        layout.addLayout(brand)
+        description = label('A place for every file.\n\nTidyCore keeps the folders you choose organized with clear rules,\npersistent history and moves you can safely undo.','Muted')
+        description.setWordWrap(True)
+        layout.addWidget(description)
+        info = surface()
+        info_layout = QVBoxLayout(info)
+        info_layout.setContentsMargins(20,16,20,16)
+        info_layout.setSpacing(14)
+        for title, body in [('Made by','Le Nguyen Gia Hung (hei)'),('Your data stays on this device',str(data_root())),('Updates','Manual downloads from the official GitHub releases page.')]:
+            info_layout.addWidget(label(title,'Caption'))
+            row = label(body)
+            row.setWordWrap(True)
+            row.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            info_layout.addWidget(row)
+        layout.addWidget(info)
+        releases = QPushButton('View releases on GitHub')
+        releases.setIcon(fluent_icon('external'))
+        releases.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/hei1sme/tidycore/releases')))
+        layout.addWidget(releases,alignment=Qt.AlignmentFlag.AlignLeft)
+        layout.addStretch()
+        return page
 
-    def _add_card_shadow(self, widget):
-        shadow = QGraphicsDropShadowEffect()
-        shadow.setBlurRadius(36)
-        shadow.setOffset(0, 10)
-        shadow.setColor(QColor(60, 70, 120, 110))
-        widget.setGraphicsEffect(shadow)
+    def focus_search(self):
+        self.select_page(0)
+        self.history_search.setFocus()
+        self.history_search.selectAll()
 
-    def _create_chart_box(self) -> QGroupBox:
-        box = QGroupBox("Category Breakdown")
-        self._add_card_shadow(box)
-        layout = QHBoxLayout(box)
-        self.chart_widget = PieChartWidget()
-        self.legend_layout = QVBoxLayout()
-        self.legend_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
-        self.legend_layout.setSpacing(10)
-        layout.addWidget(self.chart_widget, 2)
-        layout.addLayout(self.legend_layout, 1)
-        return box
+    def toggle_log(self, expanded):
+        self.activity_feed.setVisible(expanded)
+        self.log_toggle.setText('Hide activity log' if expanded else 'Activity log')
 
+    @Slot()
+    def schedule_refresh(self):
+        if not self.refresh_timer.isActive():
+            self.refresh_timer.start()
 
-    def _create_status_box(self) -> QGroupBox:
-        box = QGroupBox("Status")
-        self._add_card_shadow(box)
-        layout = QVBoxLayout(box)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.setSpacing(15)  # Reduced spacing
-        layout.setContentsMargins(15, 20, 15, 15)  # Add margins for better fit
-        
-        # Status icon and text container
-        status_container = QWidget()
-        status_layout = QVBoxLayout(status_container)
-        status_layout.setSpacing(6)  # Reduced spacing
-        status_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        status_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Status icon
-        self.status_icon = QLabel("🔄")
-        self.status_icon.setStyleSheet("font-size: 28px;")  # Slightly smaller
-        self.status_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Status text
-        self.status_label = QLabel("Initializing...")
-        self.status_label.setObjectName("StatusLabel")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        status_layout.addWidget(self.status_icon)
-        status_layout.addWidget(self.status_label)
-        
-        # Button with icon - make it more compact
-        self.pause_resume_button = QPushButton("⏸️ Pause Watching")
-        self.pause_resume_button.setObjectName("pause_resume_button")
-        self.pause_resume_button.setMinimumWidth(160)  # Slightly smaller
-        self.pause_resume_button.setMinimumHeight(35)  # Smaller height
-        self.pause_resume_button.setMaximumHeight(40)  # Limit max height
-        self.pause_resume_button.clicked.connect(self.toggle_pause_resume)
-        
-        layout.addWidget(status_container)
-        layout.addWidget(self.pause_resume_button)
-        layout.addStretch(0)  # Add a small stretch to push content up
-        return box
-    
-    def toggle_pause_resume(self):
-        """
-        Checks the engine's current state and calls the appropriate
-        pause() or resume() method.
-        """
-        if self.engine.is_running:
-            self.engine.pause()
-        else:
-            self.engine.resume()
+    @Slot()
+    def refresh_history(self):
+        self._stats_date = date.today()
+        try:
+            self.operations, today, total, categories = self.db.dashboard_snapshot(200)
+            self.today_value.setText(str(today))
+            self.total_value.setText(str(total))
+            self.category_value.setText(str(len(categories)))
+            self.stats_label.setText('History saved on this device')
+            tooltip = 'Completed journal operations minus undo; not a live disk inventory.\nToday: ' + (', '.join(f'{key}: {value}' for key,value in categories.items()) or 'no moves')
+            for widget in (self.today_value,self.total_value,self.category_value,self.stats_label):
+                widget.setToolTip(tooltip)
+            self.render_history()
+        except Exception as exc:
+            self.stats_label.setText('History unavailable')
+            self.add_log_message(f'[ERROR] Could not read history: {exc}')
 
-    def _create_statistics_box(self) -> QGroupBox:
-        box = QGroupBox("Statistics")
-        self._add_card_shadow(box)
-        layout = QVBoxLayout(box)
-        layout.setSpacing(15)
-        
-        # Today's files stat
-        today_container = QWidget()
-        today_layout = QHBoxLayout(today_container)
-        today_layout.setContentsMargins(0, 0, 0, 0)
-        
-        today_icon = QLabel("📊")
-        today_icon.setStyleSheet("font-size: 24px;")
-        today_icon.setFixedWidth(40)
-        
-        today_info = QVBoxLayout()
-        today_info.setSpacing(2)
-        self.today_number = QLabel("0")
-        self.today_number.setStyleSheet("font-size: 28px; font-weight: bold; color: #7aa2f7; margin: 0;")
-        today_text = QLabel("Files Today")
-        today_text.setStyleSheet("font-size: 14px; color: #a9b1d6; margin: 0;")
-        today_info.addWidget(self.today_number)
-        today_info.addWidget(today_text)
-        
-        today_layout.addWidget(today_icon)
-        today_layout.addLayout(today_info)
-        today_layout.addStretch()
-        
-        # Total organized stat
-        total_container = QWidget()
-        total_layout = QHBoxLayout(total_container)
-        total_layout.setContentsMargins(0, 0, 0, 0)
-        
-        total_icon = QLabel("🎯")
-        total_icon.setStyleSheet("font-size: 24px;")
-        total_icon.setFixedWidth(40)
-        
-        total_info = QVBoxLayout()
-        total_info.setSpacing(2)
-        self.total_number = QLabel("0")
-        self.total_number.setStyleSheet("font-size: 28px; font-weight: bold; color: #9ece6a; margin: 0;")
-        total_text = QLabel("Total Organized")
-        total_text.setStyleSheet("font-size: 14px; color: #a9b1d6; margin: 0;")
-        total_info.addWidget(self.total_number)
-        total_info.addWidget(total_text)
-        
-        total_layout.addWidget(total_icon)
-        total_layout.addLayout(total_info)
-        total_layout.addStretch()
-        
-        layout.addWidget(today_container)
-        layout.addWidget(total_container)
-        return box
+    def render_history(self, *_):
+        if not hasattr(self,'history_table'):
+            return
+        selected = self.selected_operation()
+        selected_id = selected['id'] if selected else None
+        query = self.history_search.text().strip().casefold()
+        state = self.history_filter.currentIndex()
+        self.displayed_operations = [row for row in self.operations
+            if (not query or query in ' '.join(str(row.get(key) or '') for key in ('filename','category','subcategory','source_path','destination_path')).casefold())
+            and (state == 0 or state == 1 and row['status']=='completed' or state == 2 and row['status']=='undone'
+                 or state == 3 and row['status'] in {'review','failed','pending','undo_pending'})]
+        self.history_table.blockSignals(True)
+        self.history_table.clearSelection()
+        self.history_table.setCurrentCell(-1,-1)
+        self.history_table.setRowCount(len(self.displayed_operations))
+        for index,row in enumerate(self.displayed_operations):
+            when = row['timestamp'].replace('T',' ')[:16]
+            if row['operation_date'] == date.today().isoformat():
+                when = 'Today, ' + row['timestamp'].replace('T',' ')[11:16]
+            values = (row['filename'],row['category']+(f" / {row['subcategory']}" if row['subcategory'] else ''),when,row['status'].replace('_',' ').capitalize())
+            for col,value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setToolTip(row['error'] or (row['timestamp'] if col==2 else value))
+                if col==0:
+                    image = Path(row['filename']).suffix.lower() in {'.png','.jpg','.jpeg','.webp','.gif'}
+                    item.setIcon(fluent_icon('image' if image else 'document','#0F6B3B' if image else '#005FB8'))
+                self.history_table.setItem(index,col,item)
+            if row['id']==selected_id:
+                self.history_table.selectRow(index)
+        self.history_table.blockSignals(False)
+        count=len(self.displayed_operations)
+        self.history_count.setText(f'{count} of {len(self.operations)} records' if query or state else f'{len(self.operations)} recent records')
+        self.empty_label.setVisible(not count)
+        self.history_table.setVisible(bool(count))
+        if not count:
+            self.empty_label.setText('No matching activity. Try another search or filter.' if self.operations else
+                'Nothing organized yet. Choose a folder, review your rules, and start watching.')
+        self.show_selection()
 
+    def selected_operation(self):
+        index=self.history_table.currentRow()
+        return self.displayed_operations[index] if 0 <= index < len(self.displayed_operations) else None
 
-    def _create_activity_feed_box(self) -> QGroupBox:
-        box = QGroupBox("Live Activity Feed")
-        self._add_card_shadow(box)
-        layout = QVBoxLayout(box)
-        
-        self.activity_feed = QTextEdit()
-        self.activity_feed.setReadOnly(True)
-        self.activity_feed.setStyleSheet("""
-            QTextEdit {
-                background-color: #181926;
-                border: 1.5px solid #363a4f;
-                border-radius: 16px;
-                color: #a9b1d6;
-                font-size: 14px;
-                padding: 16px;
-                font-family: 'Consolas', 'Monaco', monospace;
-                line-height: 1.4;
-            }
-        """)
-        
-        # Add a clear button
-        clear_button = QPushButton("Clear Feed")
-        clear_button.setStyleSheet("""
-            QPushButton {
-                background: #414868;
-                color: #a9b1d6;
-                border: 1px solid #545c7e;
-                font-size: 13px;
-                padding: 6px 16px;
-                margin: 4px 0;
-            }
-            QPushButton:hover {
-                background: #545c7e;
-                color: #ffffff;
-            }
-        """)
-        clear_button.clicked.connect(self.activity_feed.clear)
-        
-        layout.addWidget(self.activity_feed)
-        layout.addWidget(clear_button)
-        return box
-    
-    def _create_folder_decisions_box(self) -> QGroupBox:
-        box = QGroupBox("Recent Folder Decisions")
-        self._add_card_shadow(box)
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setStyleSheet("QScrollArea { border: none; background-color: transparent; }")
-        content_widget = QWidget()
-        self.folder_decisions_layout = QVBoxLayout(content_widget)
-        self.folder_decisions_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        scroll_area.setWidget(content_widget)
-        box_layout = QVBoxLayout(box)
-        box_layout.addWidget(scroll_area)
-        return box
+    def show_selection(self):
+        row=self.selected_operation()
+        self.undo_button.setEnabled(bool(row and row['status']=='completed' and row['fingerprint']))
+        self.detail_surface.setVisible(bool(row))
+        if row:
+            self.details_label.setText(f"From  {row['source_path']}")
+            self.destination_label.setText(f"To      {row['destination_path']}")
+            self.detail_surface.setToolTip(row['error'] or 'Full paths are available by hovering each line.')
 
+    def resizeEvent(self,event):
+        super().resizeEvent(event)
+        if hasattr(self,'metrics_container'):
+            self.metrics_container.setVisible(self.height()>=730)
+        if hasattr(self,'activity_feed'):
+            self.activity_feed.setMaximumHeight(90 if self.height()<730 else 130)
 
-    def _connect_signals(self):
-        signals.log_message.connect(self.add_log_message)
-        signals.update_stats.connect(self.update_statistics)
-        signals.status_changed.connect(self.update_status)
-        signals.file_organized.connect(self.on_file_organized)
-        signals.folder_decision_made.connect(self.add_folder_decision)
-        # FIXED: Connect config_changed signal to handle configuration updates
-        signals.config_changed.connect(self.handle_config_change)
+    def undo_selected(self):
+        row=self.selected_operation()
+        if row and self.undo_button.isEnabled():
+            self.undo_button.setEnabled(False)
+            self.engine.request_undo(row['id'])
 
+    @Slot(bool,str)
+    def command_completed(self,ok,message):
+        self.statusBar().showMessage(message,12000)
+        self.refresh_history()
 
-    def add_log_message(self, message: str):
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        
-        # Color code different message types
-        if "ERROR" in message.upper() or "FAILED" in message.upper():
-            color = "#f7768e"  # Red for errors
-            icon = "❌"
-        elif "WARNING" in message.upper():
-            color = "#e0af68"  # Yellow for warnings
-            icon = "⚠️"
-        elif "MOVED" in message.upper() or "ORGANIZED" in message.upper():
-            color = "#9ece6a"  # Green for success
-            icon = "✅"
-        elif "PROCESSING" in message.upper() or "SCANNING" in message.upper():
-            color = "#7aa2f7"  # Blue for processing
-            icon = "🔄"
-        else:
-            color = "#a9b1d6"  # Default color
-            icon = "ℹ️"
-        
-        formatted_message = f'<span style="color: #545c7e;">[{timestamp}]</span> <span style="color: {color};">{icon} {message}</span>'
-        self.activity_feed.append(formatted_message)
-        
-        # Auto-scroll to bottom
-        scrollbar = self.activity_feed.verticalScrollBar()
-        scrollbar.setValue(scrollbar.maximum())
+    @Slot(str)
+    def add_log_message(self,message):
+        self.activity_feed.appendPlainText(f'{datetime.now():%H:%M:%S}  {message}')
+        self.last_message.setText(message)
+        if '[ERROR]' in message:
+            self.log_toggle.setChecked(True)
 
-    def update_statistics(self, today_count: int, total_count: int):
-        self.today_number.setText(str(today_count))
-        self.total_number.setText(str(total_count))
+    @Slot(bool)
+    def update_status(self,running):
+        self.refresh_status()
 
-    def update_status(self, is_running: bool):
-        """Updates the status label AND the pause/resume button text."""
-        if is_running:
-            self.status_label.setText("Active")
-            self.status_label.setProperty("paused", "false")
-            self.status_icon.setText("✅")
-            self.pause_resume_button.setText("⏸️ Pause Watching")
-        else:
-            self.status_label.setText("Paused")
-            self.status_label.setProperty("paused", "true")
-            self.status_icon.setText("⏸️")
-            self.pause_resume_button.setText("▶️ Resume Watching")
-            
+    def refresh_status(self):
+        if self._stats_date!=date.today():
+            self.schedule_refresh()
+        health=self.engine.get_health_status()
+        running=health['is_running']
+        text = 'Restart required' if health['error'] else 'Not configured' if not self.engine.target_folder else 'Starting' if running and not health['observer_alive'] else 'Watching' if running else 'Paused'
+        self.status_label.setText('●  '+text)
+        self.status_label.setProperty('tone','error' if health['error'] else 'active' if running else 'neutral')
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
+        self.nav_status.setText('●  '+text)
+        self.path_label.setText(str(self.engine.target_folder) if self.engine.target_folder else 'Choose a folder to get started')
+        self.pause_resume_button.setText('Pause watching' if running else 'Start watching')
+        self.pause_resume_button.setIcon(fluent_icon('pause' if running else 'play','#FFFFFF' if self.engine.target_folder and not health['error'] else '#8A8A8A'))
+        self.pause_resume_button.setEnabled(bool(self.engine.target_folder) and not health['error'])
+        if hasattr(self,'tray_pause_action'):
+            self.tray_pause_action.setText('Pause watching' if running else 'Start watching')
+            self.tray_pause_action.setEnabled(self.pause_resume_button.isEnabled())
+            self.tray_icon.setToolTip(f'TidyCore — {text}')
 
-    def on_file_organized(self, category_name: str):
-        # Refresh category data from database
-        self.category_counts = statistics_db.get_category_stats_today()
-        self.chart_update_timer.start()
-        
-    def add_folder_decision(self, original_path: str, new_path: str, category: str):
-        decision_widget = FolderDecisionWidget(self.engine, original_path, new_path, category)
-        self.folder_decisions_layout.insertWidget(0, decision_widget)
+    def toggle_pause_resume(self):
+        self.engine.pause() if self.engine.is_running else self.engine.resume()
+        self.refresh_status()
 
-    def redraw_dashboard_charts(self):
-        if not self.category_counts:
-            self.chart_widget.update_slices([])
-            return
-
-        total = sum(self.category_counts.values())
-        if total == 0:
-            self.chart_widget.update_slices([])
-            return
-            
-        sorted_data = dict(sorted(self.category_counts.items(), key=lambda item: item[1], reverse=True))
-        
-        slices_to_draw = []
-        start_angle = 90.0
-
-        for i, (category, count) in enumerate(sorted_data.items()):
-            span_angle = (count / total) * 360.0
-            color = self.chart_colors[i % len(self.chart_colors)]
-            slices_to_draw.append({'color': color, 'start_angle': start_angle, 'span_angle': -span_angle})
-            start_angle -= span_angle
-        
-        self.chart_widget.update_slices(slices_to_draw)
-        
-        while self.legend_layout.count():
-            child = self.legend_layout.takeAt(0)
-            if child.widget(): child.widget().deleteLater()
-            elif child.layout():
-                while child.layout().count():
-                    nested_child = child.layout().takeAt(0)
-                    if nested_child.widget(): nested_child.widget().deleteLater()
-        
-        for i, (category, count) in enumerate(sorted_data.items()):
-            color = self.chart_colors[i % len(self.chart_colors)]
-            self._add_legend_item(category, count, total, color)
-            
-    def _add_legend_item(self, name, value, total, color):
-        # Create a container widget for better styling
-        item_widget = QWidget()
-        item_widget.setStyleSheet("""
-            QWidget {
-                background-color: rgba(26,27,38,0.8);
-                border-radius: 8px;
-                padding: 8px;
-                margin: 2px 0;
-            }
-            QWidget:hover {
-                background-color: rgba(35,36,58,0.9);
-            }
-        """)
-        
-        legend_item_layout = QHBoxLayout(item_widget)
-        legend_item_layout.setContentsMargins(8, 6, 8, 6)
-        legend_item_layout.setSpacing(12)
-        
-        # Color indicator - make it larger and more prominent
-        color_box = QLabel()
-        color_box.setFixedSize(16, 16)
-        color_box.setStyleSheet(f"""
-            background-color: {color.name()};
-            border-radius: 8px;
-            border: 2px solid rgba(255,255,255,0.1);
-        """)
-        
-        # Text container for category info
-        text_container = QVBoxLayout()
-        text_container.setSpacing(2)
-        text_container.setContentsMargins(0, 0, 0, 0)
-        
-        # Category name
-        category_label = QLabel(name)
-        category_label.setStyleSheet("font-size: 14px; font-weight: 600; color: #c0c5ea; margin: 0;")
-        
-        # Statistics
-        percentage = (value / total) * 100
-        stats_text = f"{value} files ({percentage:.1f}%)"
-        stats_label = QLabel(stats_text)
-        stats_label.setStyleSheet("font-size: 12px; color: #9aa5ce; margin: 0;")
-        
-        text_container.addWidget(category_label)
-        text_container.addWidget(stats_label)
-        
-        # Progress bar for visual percentage
-        progress_container = QWidget()
-        progress_container.setFixedHeight(4)
-        progress_container.setStyleSheet(f"""
-            background-color: rgba(35,36,58,0.5);
-            border-radius: 2px;
-        """)
-        
-        progress_bar = QWidget(progress_container)
-        progress_width = int((percentage / 100) * 60)  # Max width of 60px
-        progress_bar.setFixedSize(progress_width, 4)
-        progress_bar.setStyleSheet(f"""
-            background-color: {color.name()};
-            border-radius: 2px;
-        """)
-        
-        legend_item_layout.addWidget(color_box)
-        legend_item_layout.addLayout(text_container, 1)
-        legend_item_layout.addWidget(progress_container)
-        
-        self.legend_layout.addWidget(item_widget)
-
-    def show_update_notification(self, update_info):
-        """Show update notification using the modern dialog."""
+    @Slot()
+    def handle_config_change(self):
         try:
-            # Close any existing notification
-            if self.update_notification:
-                self.update_notification.close()
-            
-            # Create new notification widget
-            self.update_notification = UpdateNotificationWidget(update_info, self)
-            self.update_notification.show_update_dialog.connect(self._show_update_dialog)
-            self.update_notification.show()
-            
-        except Exception as e:
-            self.logger.error(f"Failed to show update notification: {e}")
-    
-    def _show_update_dialog(self, update_info):
-        """Show the detailed update dialog."""
-        try:
-            dialog = UpdateDialog(update_info, self)
-            dialog.download_requested.connect(self._handle_update_download)
-            dialog.exec()
-        except Exception as e:
-            self.logger.error(f"Failed to show update dialog: {e}")
-    
-    def _handle_update_download(self, download_url):
-        """Handle update download request."""
-        try:
-            # Import UpdateDialog locally to avoid circular imports
-            from .update_dialog import UpdateDialog
-            from PySide6.QtWidgets import QApplication
-            
-            # Store reference to current dialog
-            current_dialog = None
-            for widget in QApplication.allWidgets():
-                if isinstance(widget, UpdateDialog) and widget.isVisible():
-                    current_dialog = widget
-                    break
-            
-            if current_dialog:
-                # Connect progress updates to the dialog
-                update_manager.current_update_info = {"download_url": download_url}
-                update_manager.current_dialog = current_dialog
-                
-                # Start the download using the handle method instead
-                update_manager._handle_download_request(download_url)
-                
-                # Connect progress signals after creating the download thread
-                if hasattr(update_manager, 'download_thread'):
-                    update_manager.download_thread.progress_updated.connect(current_dialog.update_progress)
-            else:
-                # Fallback to original method
-                update_manager.current_update_info = {"download_url": download_url}
-                update_manager._start_update_process()
-        except Exception as e:
-            self.logger.error(f"Failed to handle update download: {e}")
-    
-    def _on_update_error(self, error_message):
-        """Handle update check errors."""
-        self.logger.error(f"Update check failed: {error_message}")
-        # Optionally show a user-friendly message for manual check failures
-        if not getattr(update_manager, 'silent_check', True):
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.warning(self, "Update Check Failed", 
-                              f"Failed to check for updates:\n{error_message}")
+            self.engine.reload_config(load_config())
+        except Exception as exc:
+            self.add_log_message(f'[ERROR] Settings could not be applied: {exc}')
 
     def _create_tray_icon(self):
-        # --- MODIFIED: Use the absolute path for the icon ---
-        icon_path = get_absolute_path("icon.png")
-        
-        if not os.path.exists(icon_path):
-            self.logger.warning(f"Icon file 'icon.png' not found in the project directory.")
-            self.logger.warning("Using a default system icon as a fallback. Please add 'icon.png' for a custom icon.")
-            icon = self.style().standardIcon(getattr(self.style(), 'SP_DesktopIcon'))
-        else:
-            icon = QIcon(icon_path)
-            
-        self.tray_icon = QSystemTrayIcon(icon, self)
-        self.tray_icon.setToolTip("TidyCore")
-        
-        menu = QMenu()
-        show_action = QAction("Show Dashboard", self)
-        update_action = QAction("Check for Updates", self)
-        quit_action = QAction("Quit TidyCore", self)
+        self.tray_icon = QSystemTrayIcon(self.windowIcon(), self)
+        self.tray_menu = QMenu(self)
+        show = self.tray_menu.addAction('Show TidyCore')
+        show.triggered.connect(self.show_window)
+        self.tray_pause_action = self.tray_menu.addAction('Start watching')
+        self.tray_pause_action.triggered.connect(self.toggle_pause_resume)
+        self.tray_menu.addSeparator()
+        self.tray_menu.addAction('Exit TidyCore').triggered.connect(self._exit_application)
+        self.tray_icon.setContextMenu(self.tray_menu)
+        self.tray_icon.activated.connect(self._tray_activated)
+        if QSystemTrayIcon.isSystemTrayAvailable():
+            self.tray_icon.show()
 
-        show_action.triggered.connect(self.show_window)
-        update_action.triggered.connect(lambda: update_manager.check_for_updates(silent=False))
-        quit_action.triggered.connect(self._exit_application)  # FIXED: Use proper exit method
+    def _tray_activated(self, reason):
+        if reason in (QSystemTrayIcon.ActivationReason.Trigger, QSystemTrayIcon.ActivationReason.DoubleClick):
+            self.show_window()
 
-        menu.addAction(show_action)
-        menu.addAction(update_action)
-        menu.addSeparator()
-        menu.addAction(quit_action)
-        
-        self.tray_icon.setContextMenu(menu)
-        self.tray_icon.show()
-    
     def show_window(self):
-        self.show()
+        self.showNormal()
         self.activateWindow()
         self.raise_()
 
     def closeEvent(self, event):
-        """Handle the window close event."""
-        # FIXED: Don't stop engine when just hiding to tray
-        # Only stop engine when force exiting
-        
-        # Hide to tray instead of closing if not explicitly exiting
-        if not getattr(self, '_force_exit', False):
+        if self.tray_icon.isVisible() and not getattr(self, '_force_exit', False):
             event.ignore()
             self.hide()
-            if not hasattr(self, '_first_hide'):
-                self._first_hide = True
-                self.tray_icon.showMessage(
-                    "TidyCore",
-                    "Application was minimized to tray",
-                    QSystemTrayIcon.MessageIcon.Information,
-                    2000
-                )
         else:
-            # Only stop engine when force exiting
-            if hasattr(self, 'engine') and self.engine:
-                self.engine.stop()
             event.accept()
+            self._exit_application()
 
     def _exit_application(self):
-        """Exit the application completely."""
-        self.logger.info("User requested application exit.")
         self._force_exit = True
-        
-        # FIXED: Set shutdown flag to prevent restart flow
-        import main
-        main.shutting_down = True
-        
-        # Stop the engine
-        if hasattr(self, 'engine') and self.engine:
-            self.logger.info("Stopping engine...")
-            self.engine.stop()
-        
-        # Close the application
-        self.logger.info("Closing application...")
-        QApplication.quit()
-
-    def handle_config_change(self):
-        """Handle configuration changes - reload engine configuration."""
-        self.logger.info("Configuration changed - reloading engine config")
-        
-        try:
-            # Tell the engine to reload its configuration
-            if hasattr(self, 'engine') and self.engine:
-                from .config_manager import load_config
-                new_config = load_config()
-                
-                # Update the engine's configuration
-                self.engine.reload_config(new_config)
-                self.logger.info("Engine configuration reloaded successfully")
-            else:
-                self.logger.warning("No engine available to reload config")
-                
-        except Exception as e:
-            self.logger.error(f"Error reloading engine config: {e}")
-            import traceback
-            traceback.print_exc()
+        self.engine.stop()
+        self.tray_icon.hide()
+        self.app.quit()

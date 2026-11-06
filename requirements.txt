@@ -1,4 +1,6 @@
 altgraph==0.17.4
+# This pinned PyInstaller/altgraph toolchain still imports pkg_resources at build time.
+setuptools==80.9.0
 certifi==2025.6.15
 charset-normalizer==3.4.2
 idna==3.10

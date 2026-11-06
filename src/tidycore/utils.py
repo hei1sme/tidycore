@@ -1,19 +1,28 @@
-# tidycore/utils.py
-import sys
+"""Separate immutable bundled resources from durable per-user state."""
 import os
+from pathlib import Path
+import sys
+
+
+def resource_root() -> Path:
+    return Path(getattr(sys, '_MEIPASS', Path(__file__).resolve().parents[2]))
+
 
 def get_absolute_path(relative_path: str) -> str:
-    """
-    Gets the absolute path to a resource, works for both development (script)
-    and production (packaged with PyInstaller).
-    """
-    try:
-        # PyInstaller creates a temp folder and stores path in _MEIPASS
-        # This is the base path of the bundled application.
-        base_path = sys._MEIPASS
-    except Exception:
-        # _MEIPASS is not set, so we are running in a normal Python environment.
-        # The base path is the directory of the main script.
-        base_path = os.path.abspath(".")
+    return str(resource_root() / relative_path)
 
-    return os.path.join(base_path, relative_path)
+
+def data_root() -> Path:
+    override = os.environ.get('TIDYCORE_DATA_DIR')
+    path = Path(override) if override else Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'TidyCore'
+    path = path.resolve()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def data_path(name: str) -> str:
+    return str(data_root() / name)
+
+
+def isolated_mode() -> bool:
+    return os.environ.get('TIDYCORE_TEST_MODE') == '1'

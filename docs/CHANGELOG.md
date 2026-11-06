@@ -1,3 +1,15 @@
+# v2.2.0 — Fluent workspace and reliable organization
+
+- Remade the native Windows interface with Fluent-inspired navigation, typography, system glyphs, layered surfaces and state badges.
+- Added searchable/filterable persisted history, keyboard search, a collapsible error-aware activity log, and tabbed settings with selection-aware rule actions.
+- Made first launch paused and unconfigured; separated durable user state from bundled resources and added atomic validated settings saves.
+- Reworked pause/resume, live retargeting, partial-download handling, collision protection and shutdown.
+- Added a recoverable SQLite operation journal, migration backup, snapshot statistics and content-checked persistent undo.
+- Retired unsafe self-replacement in favor of manual updates; added Windows executable version information and public-safe build manifests/checksums.
+- Consolidated duplicate outdated workflows into Windows validation with an optional manual artifact build.
+
+---
+
 # Changelog
 
 All notable changes to TidyCore will be documented in this file.
