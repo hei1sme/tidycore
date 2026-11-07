@@ -137,4 +137,6 @@ not on a schedule. See the [validation record](docs/VALIDATION.md) and
 
 [Design](DESIGN.md) · [Structure](docs/PROJECT_STRUCTURE.md) · [Build workflow](docs/RELEASE_WORKFLOW.md) · [Changelog](docs/CHANGELOG.md)
 
-Created by **Le Nguyen Gia Hung (hei)**. Licensed under the [MIT License](LICENSE).
+Created by **Le Nguyen Gia Hung (hei)**. Original project code and documentation are licensed under the [MIT License](LICENSE).
+
+Third-party dependencies, icons, fonts, and other externally sourced materials remain subject to their respective licenses. The MIT License does not replace those terms; review applicable notices and distribution requirements when packaging releases.
