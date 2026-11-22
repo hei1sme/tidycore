@@ -78,6 +78,12 @@ are visible and keyboard reachable, with invalid selections disabled. About
 shows version, creator, storage location and an explicit manual-update link.
 
 ## Do's and Don'ts
+Startup settings separately control Windows sign-in, initial window visibility
+and automatic watching. Keep these native checkbox controls in General Settings,
+within the existing scroll area. Explain next-launch behavior and retain visible
+setup/recovery when a target or tray is unavailable. Do not hide a running instance
+when the user saves settings; apply visibility on the next launch.
+
 Do keep first launch paused and require a deliberate target. Do inspect source
 and the packaged EXE, ordinary/125% scaling, minimum sizing, focus and empty/error
 states. Don't hide file-operation risks behind decoration, imply that journal

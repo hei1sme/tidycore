@@ -4,7 +4,7 @@
   <p>A place for every file.</p>
   <p>A native Windows file organizer with a Fluent-inspired workspace,<br>clear rules, persistent history and moves you can undo.</p>
 
-  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.2.1) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
+  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.3.0) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
 </div>
 
 ![TidyCore Activity workspace](assets/screenshots/activity.png)
@@ -30,10 +30,10 @@ with a record of what moved and where it went.
 
 ## Get started
 
-1. Download **TidyCore-v2.2.1-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
+1. Download **TidyCore-v2.3.0-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
 2. Extract it and run **TidyCore.exe**. No Python installation is needed.
 3. Open **Settings → General**, choose a folder, review the rules and save.
-4. Return to **Activity** and select **Start watching**.
+4. Select **Start watching** in Activity for this session, or relaunch to use your saved startup preferences.
 
 First launch is **paused with no folder selected**. Existing files in the selected
 folder are included after the stability wait. Folders are ignored by default;
@@ -45,8 +45,33 @@ with watching paused and the target temporarily cleared. Move the app outside
 that folder, select the folder again and save. The original settings file and
 history are retained until you explicitly save settings.
 
-The executable is unsigned. Checksums are included with the release. Updates are
-manual downloads; TidyCore does not silently check, download or replace itself.
+The release is a **portable app**, with no setup wizard or uninstaller. Extract it
+to a stable location outside the watched folder. An installer is not needed to run
+it. To remove the app, turn off Windows sign-in startup and exit before deleting
+the executable; local settings/history are retained separately.
+
+The executable is unsigned. Checksums are included with the release. **Automatic
+updates are not implemented.** Updates are manual downloads; TidyCore does not
+silently check, download or replace itself.
+
+## Start quietly and watch automatically
+
+In **Settings → General**, save these independent options:
+
+- **Run TidyCore when I sign in to Windows** launches the app at Windows sign-in.
+  This is optional and off until you enable it.
+- **Start in the system tray** keeps the window closed on launch. Open it from
+  the tray icon or launch the EXE again. First-time setup, recovery warnings and
+  an unavailable tray still show the window.
+- **Start watching automatically on launch** watches a valid configured folder
+  immediately, without pressing Start watching. Session Pause does not change
+  this saved preference. A changed folder stays paused for the current session.
+
+Fresh installations default to tray startup and automatic watching after a folder
+has been configured. Existing installations retain their saved start-paused
+preference: enable automatic watching once and save if upgrading from v2.2.x.
+Launch preferences take effect on the next launch. A Windows sign-in launch leaves
+an already-running instance hidden; manually launching the EXE opens that instance.
 
 ## Make it yours
 

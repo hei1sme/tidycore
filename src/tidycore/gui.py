@@ -489,6 +489,15 @@ class TidyCoreGUI(QMainWindow):
         self.activateWindow()
         self.raise_()
 
+    def apply_launch_preferences(self, config, *, needs_attention=False):
+        quiet = (config['start_in_tray'] and config['target_folder']
+                 and not needs_attention and self.tray_icon.isVisible()
+                 and QSystemTrayIcon.isSystemTrayAvailable())
+        if quiet:
+            self.hide()
+        else:
+            self.show()
+
     def closeEvent(self, event):
         if self.tray_icon.isVisible() and not getattr(self, '_force_exit', False):
             event.ignore()

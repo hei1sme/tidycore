@@ -1,3 +1,11 @@
+# v2.3.0 — Quiet startup and automatic watching
+
+- Added independent General settings for starting in the system tray and automatically watching on launch.
+- Stopped forcing start-paused after every Settings save. Existing pause preferences are retained; fresh setups default to automatic watching once a folder is configured.
+- Windows sign-in launches acknowledge an existing instance without opening its window; manual launches still reopen it.
+- Keep setup/recovery visible and show the window if the system tray is unavailable.
+- Continue to ship a portable Windows app with manual updates; no installer or automatic updater is included.
+
 # v2.2.1 — Startup recovery
 
 - Open Settings paused when a saved target contains the downloaded application or state directory, instead of failing before the UI opens.

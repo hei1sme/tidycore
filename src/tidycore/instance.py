@@ -10,12 +10,12 @@ def server_name(data_directory):
     return f'TidyCore-{digest}'
 
 
-def show_existing(name):
+def show_existing(name, *, activate=True):
     socket = QLocalSocket()
     socket.connectToServer(name)
     if not socket.waitForConnected(1500):
         return False
-    socket.write(b'show')
+    socket.write(b'show' if activate else b'ping')
     socket.flush()
     if socket.bytesToWrite():
         socket.waitForBytesWritten(1000)
@@ -49,10 +49,11 @@ class InstanceServer(QLocalServer):
     def read_request(self, socket):
         request = socket.property('request') + bytes(socket.readAll())
         socket.setProperty('request', request)
-        if request == b'show':
-            self.window.show_window()
+        if request in (b'show', b'ping'):
+            if request == b'show':
+                self.window.show_window()
             socket.write(b'ok')
             socket.flush()
             socket.disconnectFromServer()
-        elif not b'show'.startswith(request):
+        elif not any(command.startswith(request) for command in (b'show', b'ping')):
             socket.abort()

@@ -43,7 +43,7 @@ class TidyCoreEngine(FileSystemEventHandler):
         self.thread = None
         self.last_error = ''
         self._apply_config(validate_config(config))
-        self.is_running = bool(self.target_folder) and not config.get('start_paused', True)
+        self.is_running = bool(self.target_folder) and not self.config['start_paused']
         self.files_organized_today = self.db.get_today_stats()
         self.files_organized_total = self.db.get_total_stats()
 

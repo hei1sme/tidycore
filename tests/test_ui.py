@@ -95,6 +95,87 @@ def test_startup_source_command_has_one_quoted_interpreter():
     assert not command.startswith('""')
 
 
+@pytest.mark.parametrize('quiet,folder,attention,tray,visible', [
+    (True, True, False, True, False),
+    (False, True, False, True, True),
+    (True, False, False, True, True),
+    (True, True, True, True, True),
+    (True, True, False, False, True),
+])
+def test_launch_visibility_policy(window, app, monkeypatch, quiet, folder, attention, tray, visible):
+    from PySide6.QtWidgets import QSystemTrayIcon
+    monkeypatch.setattr(QSystemTrayIcon, 'isSystemTrayAvailable', lambda: tray)
+    monkeypatch.setattr(window.tray_icon, 'isVisible', lambda: tray)
+    config = dict(window.engine.config, start_in_tray=quiet)
+    if not folder:
+        config['target_folder'] = ''
+    window.apply_launch_preferences(config, needs_attention=attention)
+    app.processEvents()
+    assert window.isVisible() is visible
+
+
+def test_launch_preferences_roundtrip_and_automatic_watching(window):
+    import time
+    settings = window.settings_page
+    settings.start_in_tray_checkbox.setChecked(True)
+    settings.auto_watch_checkbox.setChecked(True)
+    settings._save_settings()
+    saved = config_manager.load_config()
+    assert saved['start_in_tray'] and not saved['start_paused']
+    settings.refresh_settings()
+    assert settings.start_in_tray_checkbox.isChecked() and settings.auto_watch_checkbox.isChecked()
+    source = window.engine.target_folder / 'on-launch.txt'
+    contents = b'Automatically watched after restart\x00\xff'
+    source.write_bytes(contents)
+    restarted = TidyCoreEngine(saved, window.db)
+    assert restarted.is_running
+    restarted.start()
+    try:
+        destination = restarted.target_folder / 'Text/on-launch.txt'
+        deadline = time.monotonic() + 8
+        while not destination.exists() and time.monotonic() < deadline:
+            time.sleep(.05)
+        assert destination.read_bytes() == contents
+        assert not source.exists()
+    finally:
+        restarted.stop()
+        restarted.join()
+    settings.auto_watch_checkbox.setChecked(False)
+    settings.start_in_tray_checkbox.setChecked(False)
+    settings._save_settings()
+    saved = config_manager.load_config()
+    assert saved['start_paused'] and not saved['start_in_tray']
+    assert not TidyCoreEngine(saved, window.db).is_running
+
+
+def test_startup_ping_does_not_raise_hidden_window(window, app):
+    import time
+    import uuid
+    from PySide6.QtNetwork import QLocalSocket
+    from src.tidycore.instance import InstanceServer
+    name = 'TidyCore-test-' + uuid.uuid4().hex
+    server = InstanceServer(name, window)
+    window.hide()
+    socket = QLocalSocket()
+    socket.connectToServer(name)
+    assert socket.waitForConnected(1000)
+    socket.write(b'pi')
+    socket.flush()
+    for _ in range(5):
+        app.processEvents()
+        time.sleep(.01)
+    assert not window.isVisible()
+    socket.write(b'ng')
+    socket.flush()
+    for _ in range(30):
+        app.processEvents()
+        time.sleep(.01)
+    assert bytes(socket.readAll()) == b'ok'
+    assert not window.isVisible()
+    socket.abort()
+    server.close()
+
+
 def test_existing_instance_channel_restores_hidden_window(window, app):
     import time
     import uuid

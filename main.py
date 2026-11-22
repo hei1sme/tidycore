@@ -9,6 +9,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description='TidyCore file organizer')
     parser.add_argument('--data-dir', type=Path, help='Explicit directory for settings, history and logs')
     parser.add_argument('--test-mode', action='store_true', help='Disable startup integration; restrict watch folder to data directory')
+    parser.add_argument('--startup', action='store_true', help='Windows sign-in launch; leave an existing instance in the tray')
     args = parser.parse_args(argv)
     if args.data_dir:
         os.environ['TIDYCORE_DATA_DIR'] = str(args.data_dir.resolve())
@@ -37,8 +38,11 @@ def main(argv=None) -> int:
     lock = QLockFile(str(data_root() / 'tidycore.lock'))
     lock.setStaleLockTime(0)
     if not lock.tryLock(100):
-        if show_existing(server_name(data_root())):
+        if show_existing(server_name(data_root()), activate=not args.startup):
             return 0
+        if args.startup:
+            logger.warning('Another instance holds the data directory; sign-in launch left it unchanged.')
+            return 1
         QMessageBox.information(None, 'TidyCore is already running',
                                 'An instance already uses this data directory. Open it from the system tray.')
         return 1
@@ -58,7 +62,7 @@ def main(argv=None) -> int:
             window.statusBar().showMessage(warning)
         instance_server = InstanceServer(server_name(data_root()), window)
         app.aboutToQuit.connect(engine.stop)
-        window.show()
+        window.apply_launch_preferences(config, needs_attention=bool(startup_warnings))
         engine.start()
         return app.exec()
     except Exception as exc:

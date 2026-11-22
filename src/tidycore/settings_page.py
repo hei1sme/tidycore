@@ -110,6 +110,8 @@ class SettingsPage(QWidget):
         self.folder_path_edit.setCursorPosition(0)
         
         self.cooldown_spin.setValue(int(self.current_config.get('cooldown_period_seconds', 5)))
+        self.start_in_tray_checkbox.setChecked(self.current_config['start_in_tray'])
+        self.auto_watch_checkbox.setChecked(not self.current_config['start_paused'])
 
         # Populate folder handling strategy
         strategy = self.current_config.get("folder_handling_strategy", "smart_scan")
@@ -153,7 +155,7 @@ class SettingsPage(QWidget):
         target_folder_layout.addWidget(browse_button)
         
         # Startup checkbox part
-        self.startup_checkbox = QCheckBox("Launch TidyCore when computer starts")
+        self.startup_checkbox = QCheckBox('Run TidyCore when I sign in to &Windows')
         self.startup_checkbox.setEnabled(not isolated_mode())
         if isolated_mode():
             self.startup_checkbox.setToolTip('Startup integration is disabled in isolated test mode.')
@@ -171,6 +173,16 @@ class SettingsPage(QWidget):
         cooldown_row.addStretch()
         layout.addLayout(cooldown_row)
         layout.addWidget(self.startup_checkbox)
+        self.start_in_tray_checkbox = QCheckBox('Start in the system &tray')
+        self.start_in_tray_checkbox.setToolTip(
+            'Keep the window closed on launch. Open it from the tray icon or launch TidyCore again. '
+            'Setup and recovery messages still open the window.')
+        layout.addWidget(self.start_in_tray_checkbox)
+        self.auto_watch_checkbox = QCheckBox('Start watching &automatically on launch')
+        self.auto_watch_checkbox.setToolTip(
+            'Watch the configured folder as soon as TidyCore launches. '
+            'Pause in Activity affects this session; this preference controls the next launch.')
+        layout.addWidget(self.auto_watch_checkbox)
         
         return box
 
@@ -380,7 +392,8 @@ class SettingsPage(QWidget):
         # Save target folder
         self.current_config['target_folder'] = self.folder_path_edit.text()
         self.current_config['cooldown_period_seconds'] = self.cooldown_spin.value()
-        self.current_config['start_paused'] = True
+        self.current_config['start_paused'] = not self.auto_watch_checkbox.isChecked()
+        self.current_config['start_in_tray'] = self.start_in_tray_checkbox.isChecked()
         
         # Save folder handling strategy
         strategy = "smart_scan"
@@ -439,13 +452,16 @@ class SettingsPage(QWidget):
             self.config_manager.save_config(self.current_config)
             startup_error = None
             try:
-                if not isolated_mode() and self.startup_checkbox.isChecked() != startup_manager.is_enabled():
-                    startup_manager.enable() if self.startup_checkbox.isChecked() else startup_manager.disable()
+                if not isolated_mode():
+                    if self.startup_checkbox.isChecked():
+                        startup_manager.enable()
+                    elif startup_manager.is_enabled():
+                        startup_manager.disable()
             except OSError as exc:
                 startup_error = str(exc)
             self.save_feedback.setText(
                 f'Settings saved, but startup could not be changed: {startup_error}' if startup_error else
-                'Settings saved. A changed folder starts paused; use Start watching in Activity.')
+                'Settings saved. Startup preferences apply on the next launch. A changed folder stays paused for this session.')
             signals.config_changed.emit()
         except Exception as e:
             self.save_feedback.setText(f'Settings could not be fully applied: {e}')

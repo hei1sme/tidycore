@@ -58,6 +58,11 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
         result['target_folder'] = str(p.resolve())
     else:
         result['target_folder'] = ''
+    for setting, default in (('start_paused', False), ('start_in_tray', True)):
+        value = result.get(setting, default)
+        if not isinstance(value, bool):
+            raise ValueError(f'{setting} must be true or false.')
+        result[setting] = value
     cooldown = result.get('cooldown_period_seconds', 5)
     if isinstance(cooldown, bool) or not isinstance(cooldown, (int, float)) or not 1 <= cooldown <= 3600:
         raise ValueError('Cooldown must be between 1 and 3600 seconds.')
@@ -113,7 +118,6 @@ def load_config(*, on_target_error=None) -> dict[str, Any]:
     if not path.exists():
         defaults = json.loads(Path(get_absolute_path('config/config.json')).read_text(encoding='utf-8'))
         defaults['target_folder'] = ''
-        defaults['start_paused'] = True
         save_config(defaults)
     stored = json.loads(path.read_text(encoding='utf-8'))
     try:

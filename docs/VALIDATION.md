@@ -1,4 +1,26 @@
-# Windows validation — v2.2.1
+# Windows validation — v2.3.0
+
+Startup tests cover tray/window visibility, first-run and recovery overrides,
+unavailable-tray fallback, saved preferences, automatic watcher startup with byte
+preservation, legacy paused settings, boolean validation, fragmented sign-in ping
+messages, and command quoting. Registry tests replace every registry call with
+an in-memory fake; no Windows startup entry is changed. The native Qt tests run
+offscreen and do not take over the user's desktop.
+
+v2.3.0: 57 regression tests passed. An isolated offscreen entry-point check also
+verified hidden automatic watching with exact file bytes, Windows sign-in relaunch
+without activation, manual relaunch activation, unchanged settings and clean exit.
+Tray availability is simulated in that headless check; real desktop tray rendering
+and actual Windows sign-in are not exercised. pip check and git diff --check passed.
+
+The v2.3.0 packaged EXE passed offscreen checks for automatic watching (including
+second-process sign-in/manual relaunch), intentionally paused startup, unconfigured
+first launch, and application-folder overlap recovery. File bytes and saved settings
+were preserved, databases passed integrity checks and paused/recovery runs made no
+moves. Only test-owned processes were terminated after checks. The visibility tests
+also rejected an intentionally inverted launch condition; source bytes were restored
+exactly afterward. EXE SHA-256:
+`269daf61c185fb34c7ad0b48d6e172ad15cf9ce03b1938f00aa4a722c39b9041`.
 
 The startup patch adds three regression cases for saved targets overlapping the
 downloaded executable, resources and state directory. Each constructs the Qt

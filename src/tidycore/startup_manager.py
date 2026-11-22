@@ -9,17 +9,20 @@ if sys.platform == 'win32':
     import winreg
 
 
-def get_application_path():
+def get_application_path(*, startup=False):
     args = [sys.executable]
     if not getattr(sys, 'frozen', False):
         args.append(str(resource_root() / 'main.py'))
+    if startup:
+        args.append('--startup')
     return subprocess.list2cmdline(args)
 
 
 class StartupManager:
     def __init__(self, app_name='TidyCore', app_path=None):
         self.app_name = app_name
-        self.app_path = app_path or get_application_path()
+        self.app_path = app_path or get_application_path(startup=True)
+        self.legacy_app_path = app_path or get_application_path()
         self.run_key_path = r'Software\Microsoft\Windows\CurrentVersion\Run'
 
     def is_enabled(self):
@@ -28,7 +31,7 @@ class StartupManager:
         try:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, self.run_key_path, 0, winreg.KEY_READ) as key:
                 value, _ = winreg.QueryValueEx(key, self.app_name)
-                return value == self.app_path
+                return value in {self.app_path, self.legacy_app_path}
         except FileNotFoundError:
             return False
 
