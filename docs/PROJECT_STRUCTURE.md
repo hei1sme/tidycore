@@ -11,7 +11,7 @@
 | `src/tidycore/settings_page.py` | Folder/rules/ignore/stability/startup controls |
 | `src/tidycore/startup_manager.py` | Explicit Windows registry integration |
 | `src/tidycore/utils.py`, `logger.py`, `signals.py` | Resource/state paths, bounded logs, Qt signals |
-| `src/tidycore/updater.py`, `update_manager.py` | Manual-update compatibility aliases; no installer |
+| `src/tidycore/updater.py`, `update_manager.py` | Stable release checks and manual-update compatibility entry points |
 | `config/config.json` | Safe bundled defaults; never live user state |
 | `assets/tidycore.svg` | Native vector application icon |
 | `tests` | Disposable filesystem/SQLite/watcher/Qt regression fixtures |

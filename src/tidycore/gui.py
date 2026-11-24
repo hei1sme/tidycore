@@ -15,7 +15,8 @@ from .config_manager import load_config
 from .settings_page import SettingsPage
 from .signals import signals
 from .theme import STYLESHEET, ElidedLabel, NavigationButton, StateDelegate, apply_theme, fluent_icon
-from .utils import data_root, get_absolute_path
+from .updater import RELEASES_URL, ReleaseChecker
+from .utils import data_root, get_absolute_path, isolated_mode
 
 
 def label(text, role=None):
@@ -98,6 +99,8 @@ class TidyCoreGUI(QMainWindow):
         self.stacked_widget.addWidget(self._activity_page())
         self.settings_page = SettingsPage()
         self.stacked_widget.addWidget(self.settings_page)
+        self.update_checker = ReleaseChecker(self)
+        self.update_checker.completed.connect(self._show_update_result)
         self.stacked_widget.addWidget(self._about_page())
         self.select_page(0)
         self._create_tray_icon()
@@ -309,19 +312,46 @@ class TidyCoreGUI(QMainWindow):
         info_layout = QVBoxLayout(info)
         info_layout.setContentsMargins(20,16,20,16)
         info_layout.setSpacing(14)
-        for title, body in [('Made by','Le Nguyen Gia Hung (hei)'),('Your data stays on this device',str(data_root())),('Updates','Manual downloads from the official GitHub releases page.')]:
+        for title, body in [('Made by','Le Nguyen Gia Hung (hei)'),('Your data stays on this device',str(data_root()))]:
             info_layout.addWidget(label(title,'Caption'))
             row = label(body)
             row.setWordWrap(True)
             row.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             info_layout.addWidget(row)
         layout.addWidget(info)
+        self.release_status = label('Update checks are disabled in test mode.' if isolated_mode()
+                                   else 'Downloads and installation are manual.', 'Muted')
+        self.release_status.setWordWrap(True)
+        layout.addWidget(self.release_status)
+        buttons = QHBoxLayout()
+        self.check_updates_button = QPushButton('Check for updates')
+        self.check_updates_button.setEnabled(not isolated_mode())
+        self.check_updates_button.clicked.connect(self._check_for_updates)
+        buttons.addWidget(self.check_updates_button)
         releases = QPushButton('View releases on GitHub')
         releases.setIcon(fluent_icon('external'))
-        releases.clicked.connect(lambda: QDesktopServices.openUrl(QUrl('https://github.com/hei1sme/tidycore/releases')))
-        layout.addWidget(releases,alignment=Qt.AlignmentFlag.AlignLeft)
+        releases.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(RELEASES_URL)))
+        buttons.addWidget(releases)
+        buttons.addStretch()
+        layout.addLayout(buttons)
         layout.addStretch()
         return page
+
+    def _check_for_updates(self):
+        if self.update_checker.check():
+            self.check_updates_button.setEnabled(False)
+            self.release_status.setText('Checking GitHub for updates...')
+
+    def _show_update_result(self, version, error):
+        self.check_updates_button.setEnabled(not isolated_mode())
+        if version:
+            message = f'TidyCore {version} is available. View releases on GitHub to download it.'
+            self.statusBar().showMessage(message, 15_000)
+            if not self.isVisible() and self.tray_icon.isVisible():
+                self.tray_icon.showMessage('TidyCore update available', message)
+        else:
+            message = error or 'TidyCore is up to date.'
+        self.release_status.setText(message)
 
     def focus_search(self):
         self.select_page(0)
@@ -497,6 +527,8 @@ class TidyCoreGUI(QMainWindow):
             self.hide()
         else:
             self.show()
+        if config.get('check_updates_on_launch', False):
+            self._check_for_updates()
 
     def closeEvent(self, event):
         if self.tray_icon.isVisible() and not getattr(self, '_force_exit', False):

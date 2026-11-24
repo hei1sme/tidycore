@@ -1,5 +1,29 @@
 # Windows validation — v2.3.0
 
+## Unreleased update-check validation
+
+- Native Windows, Python 3.12.10 using the pinned project environment. The full
+  regression suite passed 78 tests. `pip check` and `git diff --check` passed.
+- A loopback GitHub release mock exercised stable version comparison, invalid
+  metadata, ignored asset links, redirects, response size limits, timeouts and
+  the test-mode network block. Source and packaged-mode compatibility calls
+  reject installation. The app has no executable replacement path.
+- The exact feature EXE launched offscreen with `--data-dir` and `--test-mode`,
+  organized a disposable file with exact bytes, and preserved saved settings.
+  Its build manifest matches the feature source. EXE SHA-256:
+  `49cfdb7c3ca4051bb9ffac25ec44ea36bb6d30267e0e5861f05ecc2ca9aae489`.
+- A local harness manually replaced a disposable copy of v2.3.0 with a
+  validation-only v2.3.1 built from the same feature source with a version bump.
+  A partial copy and an altered copy failed the harness's integrity check.
+  A deliberate Windows file lock blocked replacement and v2.3.0 restarted
+  with its state intact. After manual replacement, v2.3.1 preserved settings
+  byte for byte and retained the earlier journal records. All three fixture
+  files retained exact bytes and SQLite integrity returned `ok`.
+- Production update traffic and real Windows startup integration stayed off.
+  Package runs were offscreen. Live GitHub traffic from the app, visual desktop
+  behavior, and automatic rollback after failed installation remain unverified.
+  Self-installation requires trusted release signing and tested recovery.
+
 Startup tests cover tray/window visibility, first-run and recovery overrides,
 unavailable-tray fallback, saved preferences, automatic watcher startup with byte
 preservation, legacy paused settings, boolean validation, fragmented sign-in ping

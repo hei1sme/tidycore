@@ -75,7 +75,8 @@ errors open it automatically. Never substitute fabricated data or progress.
 Settings separates General, File type rules and Ignored items into tabs. Keep
 the folder field wide, options labeled, and Save outside scrolling. Rule actions
 are visible and keyboard reachable, with invalid selections disabled. About
-shows version, creator, storage location and an explicit manual-update link.
+shows version, creator, storage location, the release check result and a link to
+the official downloads. Keep the optional startup check in General Settings.
 
 ## Do's and Don'ts
 Startup settings separately control Windows sign-in, initial window visibility

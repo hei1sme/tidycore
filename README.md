@@ -50,9 +50,11 @@ to a stable location outside the watched folder. An installer is not needed to r
 it. To remove the app, turn off Windows sign-in startup and exit before deleting
 the executable; local settings/history are retained separately.
 
-The executable is unsigned. Checksums are included with the release. **Automatic
-updates are not implemented.** Updates are manual downloads; TidyCore does not
-silently check, download or replace itself.
+The executable is unsigned. Releases include checksums for verifying file
+integrity. Open **About** to check for a newer stable release, or enable **Check
+for updates on launch** in **Settings > General** and save. Startup checks are off
+by default and send a release metadata request to GitHub. Download and install
+updates manually from the releases page. Isolated test mode disables update checks.
 
 ## Start quietly and watch automatically
 

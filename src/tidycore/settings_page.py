@@ -111,6 +111,7 @@ class SettingsPage(QWidget):
         
         self.cooldown_spin.setValue(int(self.current_config.get('cooldown_period_seconds', 5)))
         self.start_in_tray_checkbox.setChecked(self.current_config['start_in_tray'])
+        self.update_check_checkbox.setChecked(self.current_config['check_updates_on_launch'])
         self.auto_watch_checkbox.setChecked(not self.current_config['start_paused'])
 
         # Populate folder handling strategy
@@ -183,6 +184,12 @@ class SettingsPage(QWidget):
             'Watch the configured folder as soon as TidyCore launches. '
             'Pause in Activity affects this session; this preference controls the next launch.')
         layout.addWidget(self.auto_watch_checkbox)
+        self.update_check_checkbox = QCheckBox('Check for &updates on launch')
+        self.update_check_checkbox.setEnabled(not isolated_mode())
+        self.update_check_checkbox.setToolTip(
+            'Check GitHub for a newer release on launch. Downloads are manual.'
+            if not isolated_mode() else 'Update checks are disabled in isolated test mode.')
+        layout.addWidget(self.update_check_checkbox)
         
         return box
 
@@ -394,6 +401,7 @@ class SettingsPage(QWidget):
         self.current_config['cooldown_period_seconds'] = self.cooldown_spin.value()
         self.current_config['start_paused'] = not self.auto_watch_checkbox.isChecked()
         self.current_config['start_in_tray'] = self.start_in_tray_checkbox.isChecked()
+        self.current_config['check_updates_on_launch'] = self.update_check_checkbox.isChecked()
         
         # Save folder handling strategy
         strategy = "smart_scan"

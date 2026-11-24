@@ -1,3 +1,7 @@
+# Unreleased
+
+- Added an on-demand stable release check in About and an optional startup check in General settings. Downloads and installation remain manual.
+
 # v2.3.0 — Quiet startup and automatic watching
 
 - Added independent General settings for starting in the system tray and automatically watching on launch.

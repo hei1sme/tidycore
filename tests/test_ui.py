@@ -263,3 +263,39 @@ def test_compact_selection_keeps_history_row_and_undo_visible(window, app):
     assert window.history_table.viewport().height() >= window.history_table.rowHeight(0)
     assert window.undo_button.isVisible() and window.undo_button.isEnabled()
     assert window.details_label.toolTip().endswith(source.name)
+
+
+def test_update_preference_roundtrip_and_test_mode(window):
+    settings = window.settings_page
+    assert not settings.update_check_checkbox.isChecked()
+    assert not settings.update_check_checkbox.isEnabled()
+    assert not window.check_updates_button.isEnabled()
+    settings.update_check_checkbox.setChecked(True)
+    settings._save_settings()
+    saved = config_manager.load_config()
+    assert saved['check_updates_on_launch'] is True
+    window.apply_launch_preferences(saved)
+    assert window.update_checker._reply is None
+    settings.refresh_settings()
+    assert settings.update_check_checkbox.isChecked()
+    with pytest.raises(ValueError, match='check_updates_on_launch'):
+        config_manager.validate_config(dict(saved, check_updates_on_launch='true'))
+
+
+def test_update_controls_use_saved_opt_in_and_show_results(window, monkeypatch):
+    checks = []
+    monkeypatch.delenv('TIDYCORE_TEST_MODE')
+    monkeypatch.setattr(window.update_checker, 'check', lambda: checks.append(True) or True)
+    config = config_manager.load_config()
+    window.apply_launch_preferences(config)
+    assert checks == []
+    window.apply_launch_preferences(dict(config, check_updates_on_launch=True))
+    assert checks == [True]
+    assert not window.check_updates_button.isEnabled()
+    window.update_checker.completed.emit('2.10.0', '')
+    assert window.check_updates_button.isEnabled()
+    assert '2.10.0' in window.release_status.text()
+    window.check_updates_button.click()
+    assert checks == [True, True]
+    window.update_checker.completed.emit('', '')
+    assert window.release_status.text() == 'TidyCore is up to date.'

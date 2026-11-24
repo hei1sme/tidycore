@@ -58,7 +58,7 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
         result['target_folder'] = str(p.resolve())
     else:
         result['target_folder'] = ''
-    for setting, default in (('start_paused', False), ('start_in_tray', True)):
+    for setting, default in (('start_paused', False), ('start_in_tray', True), ('check_updates_on_launch', False)):
         value = result.get(setting, default)
         if not isinstance(value, bool):
             raise ValueError(f'{setting} must be true or false.')

@@ -2,6 +2,7 @@
   "target_folder": "",
   "start_paused": false,
   "start_in_tray": true,
+  "check_updates_on_launch": false,
   "cooldown_period_seconds": 10,
   "folder_handling_strategy": "ignore",
   "ignore_list": [
