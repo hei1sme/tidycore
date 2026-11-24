@@ -1,4 +1,4 @@
-# Unreleased
+# v2.3.1 — Optional update checks
 
 - Added an on-demand stable release check in About and an optional startup check in General settings. Downloads and installation remain manual.
 

@@ -4,7 +4,7 @@
   <p>A place for every file.</p>
   <p>A native Windows file organizer with a Fluent-inspired workspace,<br>clear rules, persistent history and moves you can undo.</p>
 
-  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.3.0) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
+  [Download for Windows](https://github.com/hei1sme/tidycore/releases/latest) · [Release notes](https://github.com/hei1sme/tidycore/releases/tag/v2.3.1) · [Report an issue](https://github.com/hei1sme/tidycore/issues)
 </div>
 
 ![TidyCore Activity workspace](assets/screenshots/activity.png)
@@ -30,7 +30,7 @@ with a record of what moved and where it went.
 
 ## Get started
 
-1. Download **TidyCore-v2.3.0-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
+1. Download **TidyCore-v2.3.1-Windows.zip** from [Releases](https://github.com/hei1sme/tidycore/releases/latest).
 2. Extract it and run **TidyCore.exe**. No Python installation is needed.
 3. Open **Settings → General**, choose a folder, review the rules and save.
 4. Select **Start watching** in Activity for this session, or relaunch to use your saved startup preferences.

@@ -1,14 +1,24 @@
-# Windows validation — v2.3.0
+# Windows validation
 
-## Unreleased update-check validation
+## v2.3.1 update-check validation
 
+- The final v2.3.1 executable passed the native Windows smoke check at
+  125% Qt scaling. About displayed both release controls and showed the check
+  disabled in test mode, even with the opt-in saved. Settings showed the
+  test-mode restrictions. The disposable file was organized and undone with
+  identical bytes. Close hid the window, relaunch reopened the same instance,
+  and Exit released the state lock. The saved settings and undone journal row
+  remained intact. About controls were also reachable after reducing the
+  window size with background accessibility automation.
+- Final portable EXE SHA-256:
+  `4ceb122c94f4be5d2d1c04fac2541732ee4b06058666a2fdbbc5fc6894a38850`.
 - Native Windows, Python 3.12.10 using the pinned project environment. The full
   regression suite passed 78 tests. `pip check` and `git diff --check` passed.
 - A loopback GitHub release mock exercised stable version comparison, invalid
   metadata, ignored asset links, redirects, response size limits, timeouts and
   the test-mode network block. Source and packaged-mode compatibility calls
   reject installation. The app has no executable replacement path.
-- The exact feature EXE launched offscreen with `--data-dir` and `--test-mode`,
+- A pre-release feature EXE launched offscreen with `--data-dir` and `--test-mode`,
   organized a disposable file with exact bytes, and preserved saved settings.
   Its build manifest matches the feature source. EXE SHA-256:
   `49cfdb7c3ca4051bb9ffac25ec44ea36bb6d30267e0e5861f05ecc2ca9aae489`.
@@ -20,8 +30,8 @@
   byte for byte and retained the earlier journal records. All three fixture
   files retained exact bytes and SQLite integrity returned `ok`.
 - Production update traffic and real Windows startup integration stayed off.
-  Package runs were offscreen. Live GitHub traffic from the app, visual desktop
-  behavior, and automatic rollback after failed installation remain unverified.
+  The pre-release transition runs were offscreen. Live GitHub traffic from the
+  app and automatic rollback after failed installation remain unverified.
   Self-installation requires trusted release signing and tested recovery.
 
 Startup tests cover tray/window visibility, first-run and recovery overrides,
